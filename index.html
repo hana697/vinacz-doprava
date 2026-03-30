@@ -1025,12 +1025,15 @@ function setupApp() {
   const badge = document.getElementById('userBadge');
   const nav = document.getElementById('navItems');
 
+  // Schovat všechny panely
+  ['panelKolega','panelKolegaPallets','panelOrders','panelStats','panelCarriers','panelPallets'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
+
   if (currentRole === 'kolega') {
     badge.textContent = '📦 Objednávky';
     document.getElementById('panelKolega').classList.add('active');
-    document.getElementById('panelOrders').classList.remove('active');
-    document.getElementById('panelStats').classList.remove('active');
-    const kpp = document.getElementById('panelKolegaPallets'); if(kpp) kpp.classList.remove('active');
     document.getElementById('filterSection').style.display = 'none';
     loadPallets();
     nav.innerHTML = `
@@ -1038,10 +1041,7 @@ function setupApp() {
       <div class="nav-item" onclick="switchKolegaTab('pallets')">🪵 Paletové konto</div>`;
   } else {
     badge.textContent = '🚚 Správa dopravy';
-    document.getElementById('panelKolega').classList.remove('active');
     document.getElementById('panelOrders').classList.add('active');
-    document.getElementById('panelStats').classList.remove('active');
-    const pp = document.getElementById('panelPallets'); if(pp) pp.classList.remove('active');
     document.getElementById('filterSection').style.display = 'block';
     nav.innerHTML = `
       <div class="nav-item active-gold" onclick="switchTab('orders')">📋 Objednávky</div>
@@ -2019,7 +2019,7 @@ function daysToDeadline(datumStr, lhuta) {
 function palletStatus(rec) {
   const carrier = CARRIERS_DATA.find(c => c.id === rec.dopravce_id);
   const dluzno = (rec.odvezeno || 0) - (rec.vraceno || 0);
-  if (rec.uzavreno || dluzno <= 0) return 'closed';
+  if (rec.uzavreno || dluzno <= 0) return 'closed';  // zahrnuje i záporné
   if (carrier?.typ_konta === 'prubezne') return 'active';
   const days = daysToDeadline(rec.datum, rec.lhuta_dni);
   if (days === null) return 'active';
@@ -2397,16 +2397,30 @@ async function savePalletReturn() {
 
   try {
     if (recordId.startsWith('carrier:')) {
-      // Průběžné konto — add return entry
+      // Průběžné konto nebo hromadné vrácení od dopravce
+      // Odečítáme od existujících záznamů postupně od nejstaršího
       const carrierId = recordId.replace('carrier:', '');
-      const carrier = CARRIERS_DATA.find(c => c.id === carrierId);
-      const { error } = await sbClient.from('pallet_movements').insert([{
-        datum, dopravce_id: carrierId, dopravce_nazev: carrier?.nazev || '',
-        zakaznik: 'vrácení palet', odvezeno: 0, vraceno: pocet,
-        lhuta_dni: 45, poznamka: poznamka || 'vrácení palet', uzavreno: false
-      }]);
-      if (error) throw error;
+      const activeRecs = PALLETS_DATA.filter(r =>
+        r.dopravce_id === carrierId && !r.uzavreno && (r.odvezeno||0)-(r.vraceno||0) > 0
+      ).sort((a,b) => a.datum?.localeCompare(b.datum||''));
+
+      let zbyvaNazpet = pocet;
+      for (const rec of activeRecs) {
+        if (zbyvaNazpet <= 0) break;
+        const dluzno = (rec.odvezeno||0) - (rec.vraceno||0);
+        const vracimTento = Math.min(zbyvaNazpet, dluzno);
+        const newVraceno = (rec.vraceno||0) + vracimTento;
+        const uzavreno = newVraceno >= (rec.odvezeno||0);
+        const newPoznamka = [rec.poznamka, poznamka].filter(Boolean).join(' · ');
+        const { error } = await sbClient.from('pallet_movements').update({
+          vraceno: newVraceno, uzavreno,
+          poznamka: newPoznamka + (uzavreno ? ' ✓ vráceno ' + datum : ' (část ' + datum + ')')
+        }).eq('id', rec.id);
+        if (error) throw error;
+        zbyvaNazpet -= vracimTento;
+      }
     } else {
+      // Konkrétní záznam
       const rec = PALLETS_DATA.find(r => r.id === recordId);
       if (!rec) return;
       const newVraceno = (rec.vraceno || 0) + pocet;
