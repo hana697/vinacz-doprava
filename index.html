@@ -694,6 +694,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
                 <option value="closed">Uzavřeno</option>
               </select>
               <button class="btn-refresh" onclick="openPalletForm()">+ Přidat záznam</button>
+              <button class="btn-refresh" onclick="cleanupFakeReturns()" title="Smaže špatné záznamy z dřívější verze">🧹 Vyčistit</button>
               <button class="btn-refresh" onclick="loadPallets()">⟳ Obnovit</button>
             </div>
           </div>
@@ -1027,13 +1028,15 @@ function setupApp() {
 
   // Schovat všechny panely
   ['panelKolega','panelKolegaPallets','panelOrders','panelStats','panelCarriers','panelPallets'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.classList.remove('active');
+    const el = document.getElementById(id); if (el) el.classList.remove('active');
   });
 
   if (currentRole === 'kolega') {
     badge.textContent = '📦 Objednávky';
     document.getElementById('panelKolega').classList.add('active');
+    document.getElementById('panelOrders').classList.remove('active');
+    document.getElementById('panelStats').classList.remove('active');
+    const kpp = document.getElementById('panelKolegaPallets'); if(kpp) kpp.classList.remove('active');
     document.getElementById('filterSection').style.display = 'none';
     loadPallets();
     nav.innerHTML = `
@@ -1041,7 +1044,10 @@ function setupApp() {
       <div class="nav-item" onclick="switchKolegaTab('pallets')">🪵 Paletové konto</div>`;
   } else {
     badge.textContent = '🚚 Správa dopravy';
+    document.getElementById('panelKolega').classList.remove('active');
     document.getElementById('panelOrders').classList.add('active');
+    document.getElementById('panelStats').classList.remove('active');
+    const pp = document.getElementById('panelPallets'); if(pp) pp.classList.remove('active');
     document.getElementById('filterSection').style.display = 'block';
     nav.innerHTML = `
       <div class="nav-item active-gold" onclick="switchTab('orders')">📋 Objednávky</div>
@@ -2019,7 +2025,7 @@ function daysToDeadline(datumStr, lhuta) {
 function palletStatus(rec) {
   const carrier = CARRIERS_DATA.find(c => c.id === rec.dopravce_id);
   const dluzno = (rec.odvezeno || 0) - (rec.vraceno || 0);
-  if (rec.uzavreno || dluzno <= 0) return 'closed';  // zahrnuje i záporné
+  if (rec.uzavreno || dluzno <= 0) return 'closed';
   if (carrier?.typ_konta === 'prubezne') return 'active';
   const days = daysToDeadline(rec.datum, rec.lhuta_dni);
   if (days === null) return 'active';
@@ -2200,7 +2206,7 @@ function renderPalletCarrierGrid() {
       ${hasOverdue ? `<div style="font-size:11px;color:#dc2626;margin-top:4px">${overdue.reduce((s,r)=>s+(r.odvezeno||0)-(r.vraceno||0),0)} pal. po termínu vrácení</div>` : ''}
       <div style="display:flex;gap:6px;margin-top:12px">
         ${hasOverdue && !isPrubezne ? `<button class="btn-sm btn-confirm" onclick="showUrgence('${id}')">✉ Urgence</button>` : ''}
-        <button class="btn-sm" style="border-color:var(--green-mid);background:var(--green-pale);color:var(--green)" onclick="openPalletReturn(null,'${id}')">+ Vráceno</button>
+        ${saldo > 0 ? `<button class="btn-sm" style="border-color:var(--green-mid);background:var(--green-pale);color:var(--green)" onclick="openPalletReturn(null,'${id}')">+ Vráceno</button>` : '<span style="font-size:11px;color:var(--muted)">✓ vše vráceno</span>'}
       </div>
     </div>`;
   }).filter(Boolean);
@@ -2396,42 +2402,55 @@ async function savePalletReturn() {
   if (!pocet) { showToast('Zadejte počet vrácených palet', 'info'); return; }
 
   try {
+    // Vždy pracujeme s existujícími záznamy — nikdy nevytváříme nové pro vrácení
+    let carrierId = null;
     if (recordId.startsWith('carrier:')) {
-      // Průběžné konto nebo hromadné vrácení od dopravce
-      // Odečítáme od existujících záznamů postupně od nejstaršího
-      const carrierId = recordId.replace('carrier:', '');
-      const activeRecs = PALLETS_DATA.filter(r =>
-        r.dopravce_id === carrierId && !r.uzavreno && (r.odvezeno||0)-(r.vraceno||0) > 0
-      ).sort((a,b) => a.datum?.localeCompare(b.datum||''));
-
-      let zbyvaNazpet = pocet;
-      for (const rec of activeRecs) {
-        if (zbyvaNazpet <= 0) break;
-        const dluzno = (rec.odvezeno||0) - (rec.vraceno||0);
-        const vracimTento = Math.min(zbyvaNazpet, dluzno);
-        const newVraceno = (rec.vraceno||0) + vracimTento;
-        const uzavreno = newVraceno >= (rec.odvezeno||0);
-        const newPoznamka = [rec.poznamka, poznamka].filter(Boolean).join(' · ');
-        const { error } = await sbClient.from('pallet_movements').update({
-          vraceno: newVraceno, uzavreno,
-          poznamka: newPoznamka + (uzavreno ? ' ✓ vráceno ' + datum : ' (část ' + datum + ')')
-        }).eq('id', rec.id);
-        if (error) throw error;
-        zbyvaNazpet -= vracimTento;
-      }
+      carrierId = recordId.replace('carrier:', '');
     } else {
-      // Konkrétní záznam
       const rec = PALLETS_DATA.find(r => r.id === recordId);
-      if (!rec) return;
-      const newVraceno = (rec.vraceno || 0) + pocet;
-      const uzavreno = newVraceno >= (rec.odvezeno || 0);
+      carrierId = rec?.dopravce_id;
+    }
+
+    if (!carrierId) { showToast('Nenalezen dopravce', 'error'); return; }
+
+    // Načti aktivní záznamy pro tohoto dopravce (s kladným dlužnem), od nejstaršího
+    const activeRecs = PALLETS_DATA.filter(r =>
+      r.dopravce_id === carrierId &&
+      !r.uzavreno &&
+      (r.odvezeno || 0) > 0 &&  // jen záznamy kde skutečně bylo odvezeno
+      (r.odvezeno || 0) - (r.vraceno || 0) > 0
+    ).sort((a, b) => (a.datum || '').localeCompare(b.datum || ''));
+
+    const celkemDluzno = activeRecs.reduce((s, r) => s + (r.odvezeno||0) - (r.vraceno||0), 0);
+
+    if (pocet > celkemDluzno) {
+      if (!confirm(`Zadáváte ${pocet} palet ale dlužno je jen ${celkemDluzno}. Pokračovat?`)) return;
+    }
+
+    if (celkemDluzno <= 0) {
+      showToast('Tento dopravce již nemá žádné dlužné palety', 'info');
+      closePalletReturn();
+      return;
+    }
+
+    // Odečítej od záznamů postupně od nejstaršího
+    let zbyvaNazpet = Math.min(pocet, celkemDluzno);
+    for (const rec of activeRecs) {
+      if (zbyvaNazpet <= 0) break;
+      const dluzno = (rec.odvezeno||0) - (rec.vraceno||0);
+      const vracimTento = Math.min(zbyvaNazpet, dluzno);
+      const newVraceno = (rec.vraceno||0) + vracimTento;
+      const uzavreno = newVraceno >= (rec.odvezeno||0);
       const newPoznamka = [rec.poznamka, poznamka].filter(Boolean).join(' · ');
       const { error } = await sbClient.from('pallet_movements').update({
-        vraceno: newVraceno, uzavreno,
+        vraceno: newVraceno,
+        uzavreno,
         poznamka: newPoznamka + (uzavreno ? ' ✓ vráceno ' + datum : ' (část ' + datum + ')')
-      }).eq('id', recordId);
+      }).eq('id', rec.id);
       if (error) throw error;
+      zbyvaNazpet -= vracimTento;
     }
+
     closePalletReturn();
     showToast('✓ Vrácení zaznamenáno', 'success');
     await loadPallets();
@@ -2440,6 +2459,28 @@ async function savePalletReturn() {
     if (currentRole === 'kolega') loadKolegaPallets();
   } catch(err) { showToast('Chyba: ' + err.message, 'error'); }
 }
+
+async function cleanupFakeReturns() {
+  // Smaže špatné záznamy kde odvezeno=0 (falešná vrácení ze staré verze)
+  if (!sbClient) return;
+  const fakeRecs = PALLETS_DATA.filter(r => (r.odvezeno||0) === 0 && (r.vraceno||0) > 0);
+  if (!fakeRecs.length) { showToast('Žádné záznamy k vyčištění ✓', 'success'); return; }
+  if (!confirm(`Najdeno ${fakeRecs.length} špatných záznamů (odvezeno=0) ke smazání. Pokračovat?`)) return;
+  showLoading('Čistím databázi...');
+  try {
+    for (const r of fakeRecs) {
+      const { error } = await sbClient.from('pallet_movements').delete().eq('id', r.id);
+      if (error) throw error;
+    }
+    hideLoading();
+    showToast(`✓ Smazáno ${fakeRecs.length} špatných záznamů`, 'success');
+    await loadPallets();
+  } catch(err) {
+    hideLoading();
+    showToast('Chyba: ' + err.message, 'error');
+  }
+}
+
 
 // ── URGENCE ──
 function showUrgence(carrierId) {
