@@ -193,7 +193,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
 .tag-planned   { background: #fef9e7; border: 1.5px solid #f5e4b0; color: #92620a; }
 .tag-confirmed { background: var(--red-row); border: 1.5px solid var(--red-row-border); color: var(--red); }
 
-.action-btns { display: flex; gap: 5px; }
+.action-btns { display: flex; gap: 3px; flex-wrap: nowrap; align-items: center; }
 .btn-sm {
   padding: 4px 10px; border-radius: 6px; font-family: 'Lato', sans-serif;
   font-size: 11px; font-weight: 900; cursor: pointer; border: 1.5px solid; transition: all 0.12s; white-space: nowrap;
@@ -599,7 +599,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
             <table>
               <thead><tr>
                 <th style="width:32px"><input type="checkbox" id="checkAll" onclick="toggleCheckAll(this)" style="cursor:pointer;accent-color:var(--green)"></th><th>Datum</th><th>Firma</th><th>Místo / PSČ</th><th>Pal</th><th>Hmotnost (t)</th>
-                <th>Nakládka</th><th>Dopravce</th><th>Cena (Kč)</th><th>Kč/pal</th><th>Poznámka</th><th>Stav</th><th>Akce</th>
+                <th>Nakládka</th><th>Dopravce</th><th>Cena (Kč)</th><th>Kč/pal</th><th>Poznámka</th><th>Stav</th><th style="min-width:260px">Akce</th>
               </tr></thead>
               <tbody id="ordersTbody"></tbody>
             </table>
@@ -1313,7 +1313,7 @@ function renderTable() {
         <div class="action-btns">
           <button class="btn-sm btn-plan"    onclick="setStatusDirect('${r.id}','planned')">Zadat</button>
           <button class="btn-sm btn-confirm" onclick="setStatus('${r.id}','confirmed')">✓ Potvrdit</button>
-          ${r.dopravce ? `<button class="btn-sm" style="border:1.5px solid var(--green-mid);background:var(--green-pale);color:var(--green)" onclick="generatePdf('${r.id}')" title="Objednávka přepravy">📄</button>` : ''}
+          ${r.dopravce ? `<button class="btn-sm" style="border:1.5px solid var(--green-mid);background:var(--green-pale);color:var(--green);padding:4px 7px" onclick="generatePdf('${r.id}')" title="Objednávka přepravy">📄</button>` : '<span style="display:inline-block;width:28px"></span>'}
           ${(() => {
             const existing = PALLETS_DATA.find(p => p.order_id === r.id);
             if (existing) {
@@ -1322,12 +1322,12 @@ function renderTable() {
               const bg = st==='overdue'?'#fef2f2':st==='soon'?'#fffbeb':'#f0f5ee';
               const col = st==='overdue'?'#dc2626':st==='soon'?'#92620a':'#3d6b4f';
               const bc = st==='overdue'?'#fecaca':st==='soon'?'#f5e4b0':'#c2d9bb';
-              return `<button class="btn-sm" style="border:1.5px solid ${bc};background:${bg};color:${col}" onclick="openPalletFromOrder('${r.id}')" title="Palety zapsány — klikni pro úpravu">🪵 ${dluzno>0?dluzno+' pal.':'✓'}</button>`;
+              return `<button class="btn-sm" style="border:1.5px solid ${bc};background:${bg};color:${col};padding:4px 7px" onclick="openPalletFromOrder('${r.id}')" title="Palety zapsány — klikni pro úpravu">🪵${dluzno>0?' '+dluzno:' ✓'}</button>`;
             }
-            return `<button class="btn-sm" style="border:1.5px solid #c2d9bb;background:#f0f5ee;color:#3d6b4f" onclick="openPalletFromOrder('${r.id}')" title="Zapsat palety">🪵</button>`;
+            return `<button class="btn-sm" style="border:1.5px solid #c2d9bb;background:#f0f5ee;color:#3d6b4f;padding:4px 7px" onclick="openPalletFromOrder('${r.id}')" title="Zapsat palety">🪵</button>`;
           })()}
-          <button class="btn-sm" style="border:1.5px solid #c2d9bb;background:#f0f5ee;color:var(--text2)" onclick="openEditOrder('${r.id}')" title="Upravit">✏</button>
-          <button class="btn-sm" style="border:1.5px solid var(--red-row-border);background:var(--red-row);color:var(--red)" onclick="deleteOrder('${r.id}','${r.firma.replace(/'/g,`\\'`)}','${r.datum}')" title="Smazat">✕</button>
+          <button class="btn-sm" style="border:1.5px solid #d0d5db;background:#f5f6f8;color:#555;padding:4px 8px" onclick="openEditOrder('${r.id}')" title="Upravit objednávku">✏</button>
+          <button class="btn-sm" style="border:1.5px solid var(--red-row-border);background:var(--red-row);color:var(--red);padding:4px 8px" onclick="deleteOrder('${r.id}','${r.firma.replace(/'/g,`\\'`)}','${r.datum}')" title="Smazat objednávku">✕</button>
         </div>
       </td>
     </tr>`;
