@@ -1326,6 +1326,8 @@ function renderTable() {
             }
             return `<button class="btn-sm" style="border:1.5px solid #c2d9bb;background:#f0f5ee;color:#3d6b4f" onclick="openPalletFromOrder('${r.id}')" title="Zapsat palety">🪵</button>`;
           })()}
+          <button class="btn-sm" style="border:1.5px solid #c2d9bb;background:#f0f5ee;color:var(--text2)" onclick="openEditOrder('${r.id}')" title="Upravit">✏</button>
+          <button class="btn-sm" style="border:1.5px solid var(--red-row-border);background:var(--red-row);color:var(--red)" onclick="deleteOrder('${r.id}','${r.firma.replace(/'/g,`\\'`)}','${r.datum}')" title="Smazat">✕</button>
         </div>
       </td>
     </tr>`;
@@ -1888,6 +1890,44 @@ function printPdf() {
   </div>
 </div>
 
+
+<!-- EDIT ORDER MODAL -->
+<div id="editOrderModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9991;align-items:center;justify-content:center">
+  <div style="background:white;border-radius:16px;padding:28px 32px;width:540px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.2);border:1.5px solid var(--border)">
+    <div style="font-size:16px;font-weight:900;margin-bottom:4px">✏ Upravit objednávku</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:20px" id="eo-subtitle"></div>
+    <input type="hidden" id="eo-id">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div><div class="filter-label" style="margin-bottom:5px">Datum</div>
+        <input type="date" id="eo-datum" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)"></div>
+      <div><div class="filter-label" style="margin-bottom:5px">Datum nakládky</div>
+        <input type="date" id="eo-nakladky" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)"></div>
+      <div style="grid-column:1/-1"><div class="filter-label" style="margin-bottom:5px">Firma *</div>
+        <input type="text" id="eo-firma" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)"></div>
+      <div><div class="filter-label" style="margin-bottom:5px">PSČ</div>
+        <input type="text" id="eo-psc" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)"></div>
+      <div><div class="filter-label" style="margin-bottom:5px">Místo</div>
+        <input type="text" id="eo-misto" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)"></div>
+      <div><div class="filter-label" style="margin-bottom:5px">Palety</div>
+        <input type="number" id="eo-palet" step="0.5" min="0" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg);text-align:right"></div>
+      <div><div class="filter-label" style="margin-bottom:5px">Hmotnost (t)</div>
+        <input type="number" id="eo-hmotnost" step="0.001" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg);text-align:right"></div>
+      <div><div class="filter-label" style="margin-bottom:5px">Dopravce</div>
+        <div style="position:relative">
+          <input type="text" id="eo-dopravce" placeholder="Název nebo RAAL..." style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)" oninput="eoAutocomplete(this.value)" autocomplete="off">
+          <div id="eo-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1.5px solid var(--green-mid);border-radius:8px;margin-top:3px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.12);max-height:150px;overflow-y:auto"></div>
+        </div></div>
+      <div><div class="filter-label" style="margin-bottom:5px">Cena (Kč)</div>
+        <input type="number" id="eo-cena" min="0" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg);text-align:right"></div>
+      <div style="grid-column:1/-1"><div class="filter-label" style="margin-bottom:5px">Poznámka</div>
+        <input type="text" id="eo-poznamka" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+      <button onclick="closeEditOrder()" style="padding:10px 20px;border:1.5px solid var(--border);border-radius:8px;background:transparent;font-family:'Lato',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--text2)">Zrušit</button>
+      <button onclick="saveEditOrder()" style="padding:10px 24px;background:var(--green);color:white;border:none;border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;font-weight:900;cursor:pointer">✓ Uložit změny</button>
+    </div>
+  </div>
+</div>
 </body></html>`);
   win.document.close();
   win.focus();
@@ -2545,7 +2585,45 @@ function printUrgence() {
   const win = window.open('', '_blank');
   win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Urgence vrácení palet</title>
   <style>* { box-sizing: border-box; } body { font-family: Arial, sans-serif; font-size: 13px; color: #000; margin: 0; padding: 15mm 18mm; width: 210mm; } @page { size: A4; margin: 0; }</style>
-  </head><body>${content}</body></html>`);
+  </head><body>${content}
+<!-- EDIT ORDER MODAL -->
+<div id="editOrderModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9991;align-items:center;justify-content:center">
+  <div style="background:white;border-radius:16px;padding:28px 32px;width:540px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.2);border:1.5px solid var(--border)">
+    <div style="font-size:16px;font-weight:900;margin-bottom:4px">✏ Upravit objednávku</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:20px" id="eo-subtitle"></div>
+    <input type="hidden" id="eo-id">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div><div class="filter-label" style="margin-bottom:5px">Datum</div>
+        <input type="date" id="eo-datum" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)"></div>
+      <div><div class="filter-label" style="margin-bottom:5px">Datum nakládky</div>
+        <input type="date" id="eo-nakladky" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)"></div>
+      <div style="grid-column:1/-1"><div class="filter-label" style="margin-bottom:5px">Firma *</div>
+        <input type="text" id="eo-firma" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)"></div>
+      <div><div class="filter-label" style="margin-bottom:5px">PSČ</div>
+        <input type="text" id="eo-psc" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)"></div>
+      <div><div class="filter-label" style="margin-bottom:5px">Místo</div>
+        <input type="text" id="eo-misto" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)"></div>
+      <div><div class="filter-label" style="margin-bottom:5px">Palety</div>
+        <input type="number" id="eo-palet" step="0.5" min="0" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg);text-align:right"></div>
+      <div><div class="filter-label" style="margin-bottom:5px">Hmotnost (t)</div>
+        <input type="number" id="eo-hmotnost" step="0.001" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg);text-align:right"></div>
+      <div><div class="filter-label" style="margin-bottom:5px">Dopravce</div>
+        <div style="position:relative">
+          <input type="text" id="eo-dopravce" placeholder="Název nebo RAAL..." style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)" oninput="eoAutocomplete(this.value)" autocomplete="off">
+          <div id="eo-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1.5px solid var(--green-mid);border-radius:8px;margin-top:3px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.12);max-height:150px;overflow-y:auto"></div>
+        </div></div>
+      <div><div class="filter-label" style="margin-bottom:5px">Cena (Kč)</div>
+        <input type="number" id="eo-cena" min="0" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg);text-align:right"></div>
+      <div style="grid-column:1/-1"><div class="filter-label" style="margin-bottom:5px">Poznámka</div>
+        <input type="text" id="eo-poznamka" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+      <button onclick="closeEditOrder()" style="padding:10px 20px;border:1.5px solid var(--border);border-radius:8px;background:transparent;font-family:'Lato',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--text2)">Zrušit</button>
+      <button onclick="saveEditOrder()" style="padding:10px 24px;background:var(--green);color:white;border:none;border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;font-weight:900;cursor:pointer">✓ Uložit změny</button>
+    </div>
+  </div>
+</div>
+</body></html>`);
   win.document.close(); win.focus();
   setTimeout(() => win.print(), 600);
 }
@@ -2814,6 +2892,94 @@ async function normalizeCarriers() {
   }
 }
 
+
+// ── EDIT & DELETE ORDER ──
+function openEditOrder(orderId) {
+  const r = RAW_DATA.find(o => o.id === orderId);
+  if (!r) return;
+  document.getElementById('eo-id').value = orderId;
+  document.getElementById('eo-subtitle').textContent = r.firma + ' — ' + r.datum;
+  document.getElementById('eo-datum').value = r.datum || '';
+  document.getElementById('eo-nakladky').value = r.dat_nakladky || '';
+  document.getElementById('eo-firma').value = r.firma || '';
+  document.getElementById('eo-psc').value = r.psc || '';
+  document.getElementById('eo-misto').value = r.misto || '';
+  document.getElementById('eo-palet').value = r.palet || '';
+  document.getElementById('eo-hmotnost').value = r.hmotnost || '';
+  document.getElementById('eo-dopravce').value = r.dopravce || '';
+  document.getElementById('eo-cena').value = r.cena || '';
+  document.getElementById('eo-poznamka').value = r.poznamka || '';
+  document.getElementById('editOrderModal').style.display = 'flex';
+}
+
+function closeEditOrder() {
+  document.getElementById('editOrderModal').style.display = 'none';
+  document.getElementById('eo-suggestions').style.display = 'none';
+}
+
+function eoAutocomplete(val) {
+  const box = document.getElementById('eo-suggestions');
+  if (!val || val.length < 1) { box.style.display = 'none'; return; }
+  const q = val.trim().toLowerCase();
+  const matches = CARRIERS_DATA.filter(c =>
+    c.nazev.toLowerCase().includes(q) || (c.raal && c.raal.toLowerCase().includes(q))
+  ).slice(0, 6);
+  if (!matches.length) { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  box.innerHTML = matches.map(c =>
+    `<div onclick="document.getElementById('eo-dopravce').value='${c.nazev.replace(/'/g,"\'")}';document.getElementById('eo-suggestions').style.display='none'"
+      style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:0.5px solid var(--border);display:flex;justify-content:space-between"
+      onmouseover="this.style.background='var(--green-pale)'" onmouseout="this.style.background='white'">
+      <span style="font-weight:700">${c.nazev}</span>
+      ${c.raal ? `<span style="font-size:11px;color:var(--muted)">${c.raal}</span>` : ''}
+    </div>`
+  ).join('');
+}
+
+async function saveEditOrder() {
+  const id = document.getElementById('eo-id').value;
+  const firma = document.getElementById('eo-firma').value.trim();
+  if (!firma) { showToast('Firma je povinná', 'info'); return; }
+  const cena = parseFloat(document.getElementById('eo-cena').value) || 0;
+  const palet = parseFloat(document.getElementById('eo-palet').value) || 0;
+  const cenaPal = cena > 0 && palet > 0 ? Math.round(cena / palet * 100) / 100 : 0;
+  const payload = {
+    datum: document.getElementById('eo-datum').value,
+    dat_nakladky: document.getElementById('eo-nakladky').value || null,
+    firma, psc: document.getElementById('eo-psc').value.trim(),
+    misto: document.getElementById('eo-misto').value.trim(),
+    palet, hmotnost: parseFloat(document.getElementById('eo-hmotnost').value) || 0,
+    dopravce: document.getElementById('eo-dopravce').value.trim(),
+    cena, cena_pal: cenaPal,
+    poznamka: document.getElementById('eo-poznamka').value.trim()
+  };
+  try {
+    const { error } = await sbClient.from('orders').update(payload).eq('id', id);
+    if (error) throw error;
+    const idx = RAW_DATA.findIndex(r => r.id === id);
+    if (idx >= 0) RAW_DATA[idx] = { ...RAW_DATA[idx], ...payload };
+    closeEditOrder();
+    showToast('✓ Objednávka upravena', 'success');
+    applyFilters(false);
+    renderKolegaList();
+    renderKPIs();
+  } catch(err) { showToast('Chyba: ' + err.message, 'error'); }
+}
+
+async function deleteOrder(id, firma, datum) {
+  if (!confirm('Smazat objednávku?\n\n' + firma + ' — ' + datum + '\n\nTato akce je nevratná!')) return;
+  if (!confirm('⚠️ Opravdu smazat "' + firma + '" ze dne ' + datum + '?\nDruhé potvrzení pro jistotu.')) return;
+  try {
+    const { error } = await sbClient.from('orders').delete().eq('id', id);
+    if (error) throw error;
+    RAW_DATA = RAW_DATA.filter(r => r.id !== id);
+    showToast('Objednávka smazána', 'info');
+    applyFilters(false);
+    renderKolegaList();
+    renderKPIs();
+  } catch(err) { showToast('Chyba: ' + err.message, 'error'); }
+}
+
 // ── HISTORICAL IMPORT ──
 // Data z původního Excelu — importuje se tlačítkem Import (pouze jednou!)
 const HISTORICAL_DATA = [{"datum":"2026-03-11","firma":"Thang Long Nguyen","misto":"Česká Lípa","psc":"47001","bib20":0,"bib5":0,"bib3":0,"pet2":384,"sklo1":0,"pet_prazdne":0,"palet":1,"hmotnost":0.8122,"cena":0,"cena_pal":0,"dopravce":"Geis","poznamka":"608734444","dat_nakladky":null,"stav":"new"},{"datum":"2026-03-11","firma":"Daily Fresh Foods","misto":"Praha 3 - Žižkov","psc":"14900","bib20":0,"bib5":0,"bib3":0,"pet2":0,"sklo1":1134,"pet_prazdne":0,"palet":3,"hmotnost":1.776,"cena":0,"cena_pal":0,"dopravce":"Geis","poznamka":"770119999","dat_nakladky":null,"stav":"new"},{"datum":"2026-03-11","firma":"Css Trade","misto":"Praha 10 Tiskařská","psc":"17000","bib20":0,"bib5":0,"bib3":0,"pet2":864,"sklo1":1134,"pet_prazdne":0,"palet":6,"hmotnost":3.6222,"cena":0,"cena_pal":0,"dopravce":"","poznamka":"773499997","dat_nakladky":null,"stav":"new"},{"datum":"2026-03-10","firma":"Ilona Podzimková","misto":"Příbram 1","psc":"26101","bib20":0,"bib5":0,"bib3":0,"pet2":384,"sklo1":0,"pet_prazdne":0,"palet":1,"hmotnost":0.8122,"cena":0,"cena_pal":0,"dopravce":"","poznamka":"","dat_nakladky":null,"stav":"new"},{"datum":"2026-03-10","firma":"Tamda","misto":"Brno - Šlapanice","psc":"66451","bib20":0,"bib5":0,"bib3":0,"pet2":0,"sklo1":1260,"pet_prazdne":0,"palet":3,"hmotnost":1.965,"cena":0,"cena_pal":0,"dopravce":"Geis","poznamka":"","dat_nakladky":null,"stav":"new"},{"datum":"2026-03-10","firma":"Tamda","misto":"Praha - Hostivice","psc":"25301","bib20":0,"bib5":0,"bib3":36,"pet2":2496,"sklo1":3024,"pet_prazdne":0,"palet":16,"hmotnost":10.168,"cena":10500,"cena_pal":656.25,"dopravce":"3M6","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-03-10","firma":"Marvelous","misto":"Praha - Sapa","psc":"14200","bib20":0,"bib5":0,"bib3":0,"pet2":960,"sklo1":378,"pet_prazdne":0,"palet":4,"hmotnost":2.635,"cena":0,"cena_pal":0,"dopravce":"Geis","poznamka":"Závoz do konce týdne","dat_nakladky":null,"stav":"new"},{"datum":"2026-03-10","firma":"Eurostár Plus","misto":"Benešov nad Ploučnicí","psc":"40722","bib20":0,"bib5":0,"bib3":0,"pet2":576,"sklo1":2646,"pet_prazdne":0,"palet":9,"hmotnost":5.3748,"cena":9000,"cena_pal":1000,"dopravce":"46V","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-03-09","firma":"Flosman","misto":"Planá nad Lužnicí","psc":"39111","bib20":12,"bib5":0,"bib3":0,"pet2":774,"sklo1":126,"pet_prazdne":0,"palet":3,"hmotnost":2.0931,"cena":0,"cena_pal":0,"dopravce":"","poznamka":"","dat_nakladky":null,"stav":"new"},{"datum":"2026-03-09","firma":"Viden","misto":"Jeseník","psc":"79001","bib20":9,"bib5":0,"bib3":0,"pet2":288,"sklo1":378,"pet_prazdne":0,"palet":2,"hmotnost":1.3892,"cena":0,"cena_pal":0,"dopravce":"","poznamka":"584412175","dat_nakladky":null,"stav":"new"},{"datum":"2026-03-09","firma":"Xuan Vinh Nguyen","misto":"Úpice","psc":"54232","bib20":0,"bib5":0,"bib3":0,"pet2":288,"sklo1":78,"pet_prazdne":0,"palet":1,"hmotnost":0.7324,"cena":0,"cena_pal":0,"dopravce":"","poznamka":"776 578 599","dat_nakladky":null,"stav":"new"},{"datum":"2026-03-09","firma":"Kevin Hoang","misto":"Praha - Sapa","psc":"14200","bib20":0,"bib5":0,"bib3":0,"pet2":1152,"sklo1":126,"pet_prazdne":0,"palet":4,"hmotnost":2.6506,"cena":0,"cena_pal":0,"dopravce":"","poznamka":"777435123","dat_nakladky":null,"stav":"new"},{"datum":"2026-03-04","firma":"Max Brands","misto":"Praha 4 V lužích","psc":"14000","bib20":0,"bib5":0,"bib3":0,"pet2":1728,"sklo1":0,"pet_prazdne":0,"palet":5,"hmotnost":3.6674,"cena":7000,"cena_pal":1400,"dopravce":"3O0","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-03-04","firma":"V-markt Plus","misto":"Karlovy Vary","psc":"36005","bib20":0,"bib5":0,"bib3":0,"pet2":864,"sklo1":2646,"pet_prazdne":0,"palet":10,"hmotnost":5.9902,"cena":10000,"cena_pal":1000,"dopravce":"3O0","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-03-03","firma":"Ilona Podzimková","misto":"Příbram 1","psc":"26101","bib20":0,"bib5":0,"bib3":0,"pet2":480,"sklo1":0,"pet_prazdne":0,"palet":2,"hmotnost":1.034,"cena":0,"cena_pal":0,"dopravce":"Geis","poznamka":"","dat_nakladky":null,"stav":"new"},{"datum":"2026-03-02","firma":"Tam Ha Plus","misto":"Brno Černovice","psc":"62700","bib20":0,"bib5":0,"bib3":0,"pet2":0,"sklo1":1008,"pet_prazdne":0,"palet":3,"hmotnost":1.587,"cena":0,"cena_pal":0,"dopravce":"Hortim","poznamka":"777224134","dat_nakladky":null,"stav":"new"},{"datum":"2026-03-02","firma":"Flosman","misto":"Planá nad Lužnicí","psc":"39111","bib20":6,"bib5":0,"bib3":0,"pet2":1170,"sklo1":156,"pet_prazdne":0,"palet":5,"hmotnost":2.8787,"cena":5195,"cena_pal":1039,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-03-02","firma":"Hl Drinks","misto":"Praha - Sapa","psc":"14200","bib20":0,"bib5":0,"bib3":0,"pet2":384,"sklo1":630,"pet_prazdne":0,"palet":3,"hmotnost":1.8072,"cena":0,"cena_pal":0,"dopravce":"Geis","poznamka":"777908989","dat_nakladky":null,"stav":"new"},{"datum":"2026-03-02","firma":"Tamda","misto":"Brno - Šlapanice","psc":"66451","bib20":0,"bib5":0,"bib3":0,"pet2":672,"sklo1":882,"pet_prazdne":0,"palet":4,"hmotnost":2.8006,"cena":0,"cena_pal":0,"dopravce":"Hortim","poznamka":"","dat_nakladky":null,"stav":"new"},{"datum":"2026-03-02","firma":"Trafco","misto":"Poděbrady","psc":"29001","bib20":26,"bib5":0,"bib3":20,"pet2":0,"sklo1":0,"pet_prazdne":0,"palet":1,"hmotnost":0.6142,"cena":0,"cena_pal":0,"dopravce":"Geis","poznamka":"","dat_nakladky":null,"stav":"new"},{"datum":"2026-02-27","firma":"Dang Trung Luong","misto":"Stříbrná Skalice","psc":"28167","bib20":0,"bib5":0,"bib3":0,"pet2":288,"sklo1":0,"pet_prazdne":0,"palet":1,"hmotnost":0.6154,"cena":0,"cena_pal":0,"dopravce":"Geis","poznamka":"725189736","dat_nakladky":null,"stav":"new"},{"datum":"2026-02-27","firma":"Viden","misto":"Jeseník","psc":"79001","bib20":2,"bib5":0,"bib3":0,"pet2":288,"sklo1":252,"pet_prazdne":0,"palet":2,"hmotnost":1.0588,"cena":0,"cena_pal":0,"dopravce":"Geis","poznamka":"","dat_nakladky":null,"stav":"new"},{"datum":"2026-02-25","firma":"Linsan","misto":"Praha 3 - Žižkov","psc":"13000","bib20":0,"bib5":0,"bib3":0,"pet2":0,"sklo1":2268,"pet_prazdne":0,"palet":6,"hmotnost":3.552,"cena":5400,"cena_pal":900,"dopravce":"E66","poznamka":"775388888","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-25","firma":"Vrtal","misto":"Kutná Hora","psc":"28401","bib20":1,"bib5":0,"bib3":35,"pet2":60,"sklo1":0,"pet_prazdne":0,"palet":1,"hmotnost":0.2802,"cena":0,"cena_pal":0,"dopravce":"Geis","poznamka":"","dat_nakladky":null,"stav":"new"},{"datum":"2026-02-25","firma":"Tamda Foods","misto":"Praha - Hostivice","psc":"25301","bib20":0,"bib5":0,"bib3":0,"pet2":2016,"sklo1":3024,"pet_prazdne":0,"palet":15,"hmotnost":9.0438,"cena":9000,"cena_pal":600,"dopravce":"85G","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-24","firma":"Haiduong Foods","misto":"Plzeň","psc":"30100","bib20":0,"bib5":0,"bib3":0,"pet2":0,"sklo1":1386,"pet_prazdne":0,"palet":4,"hmotnost":2.179,"cena":0,"cena_pal":0,"dopravce":"Geis","poznamka":"774858956","dat_nakladky":null,"stav":"new"},{"datum":"2026-02-24","firma":"Kubík","misto":"Pardubice - Popkovice","psc":"53006","bib20":0,"bib5":0,"bib3":0,"pet2":864,"sklo1":60,"pet_prazdne":0,"palet":3,"hmotnost":1.9362,"cena":3021,"cena_pal":1007,"dopravce":"Wereldo","poznamka":"602143196","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-24","firma":"Rast","misto":"Teplice","psc":"41502","bib20":0,"bib5":0,"bib3":0,"pet2":1152,"sklo1":0,"pet_prazdne":0,"palet":4,"hmotnost":2.4616,"cena":0,"cena_pal":0,"dopravce":"Geis","poznamka":"","dat_nakladky":null,"stav":"new"},{"datum":"2026-02-23","firma":"Kevin Hoang","misto":"Praha - Sapa","psc":"14200","bib20":0,"bib5":0,"bib3":0,"pet2":0,"sklo1":756,"pet_prazdne":0,"palet":2,"hmotnost":1.184,"cena":1800,"cena_pal":900,"dopravce":"E66","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-23","firma":"Flosman","misto":"Planá nad Lužnicí","psc":"39111","bib20":12,"bib5":0,"bib3":0,"pet2":1728,"sklo1":216,"pet_prazdne":0,"palet":7,"hmotnost":4.2838,"cena":9331,"cena_pal":1333,"dopravce":"Šakal","poznamka":"381791311","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-23","firma":"Max Brands","misto":"Praha 4","psc":"14000","bib20":0,"bib5":0,"bib3":0,"pet2":288,"sklo1":1512,"pet_prazdne":0,"palet":5,"hmotnost":2.9834,"cena":4500,"cena_pal":900,"dopravce":"E66","poznamka":"777861995","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-20","firma":"RAPO Brno","misto":"Tišnov","psc":"66603","bib20":0,"bib5":0,"bib3":0,"pet2":384,"sklo1":0,"pet_prazdne":0,"palet":1,"hmotnost":0.8122,"cena":0,"cena_pal":0,"dopravce":"Geis","poznamka":"","dat_nakladky":null,"stav":"new"},{"datum":"2026-02-20","firma":"Tamda","misto":"Brno - Šlapanice","psc":"66451","bib20":0,"bib5":0,"bib3":0,"pet2":672,"sklo1":756,"pet_prazdne":0,"palet":4,"hmotnost":2.6116,"cena":0,"cena_pal":0,"dopravce":"Hortim","poznamka":"","dat_nakladky":null,"stav":"new"},{"datum":"2026-02-20","firma":"Zbleskz","misto":"České Budějovice","psc":"37001","bib20":0,"bib5":0,"bib3":0,"pet2":96,"sklo1":1764,"pet_prazdne":0,"palet":5,"hmotnost":2.9678,"cena":6665,"cena_pal":1333,"dopravce":"Šakal","poznamka":"608457688","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-19","firma":"Viden","misto":"Jeseník","psc":"79001","bib20":2,"bib5":0,"bib3":10,"pet2":576,"sklo1":630,"pet_prazdne":0,"palet":4,"hmotnost":2.2982,"cena":3809,"cena_pal":952.25,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-18","firma":"Unikom","misto":"Kutná Hora","psc":"28401","bib20":0,"bib5":0,"bib3":0,"pet2":1824,"sklo1":126,"pet_prazdne":0,"palet":6,"hmotnost":4.0782,"cena":5000,"cena_pal":833,"dopravce":"Silvan","poznamka":"603733634","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-18","firma":"Marvelous","misto":"Praha - Sapa","psc":"14200","bib20":0,"bib5":0,"bib3":0,"pet2":864,"sklo1":756,"pet_prazdne":0,"palet":5,"hmotnost":3.0302,"cena":0,"cena_pal":0,"dopravce":"Geis","poznamka":"720127777","dat_nakladky":null,"stav":"new"},{"datum":"2026-02-17","firma":"Tamda","misto":"Praha - Hostivice","psc":"25301","bib20":0,"bib5":0,"bib3":0,"pet2":768,"sklo1":4914,"pet_prazdne":0,"palet":15,"hmotnost":9.3204,"cena":9090,"cena_pal":606,"dopravce":"Sedláček","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-16","firma":"Flosman","misto":"Planá nad Lužnicí","psc":"39111","bib20":12,"bib5":0,"bib3":0,"pet2":816,"sklo1":150,"pet_prazdne":0,"palet":4,"hmotnost":2.2402,"cena":0,"cena_pal":0,"dopravce":"Geis","poznamka":"","dat_nakladky":null,"stav":"new"},{"datum":"2026-02-16","firma":"Tamda","misto":"Ústí nad Labem","psc":"40010","bib20":0,"bib5":0,"bib3":0,"pet2":0,"sklo1":756,"pet_prazdne":0,"palet":2,"hmotnost":1.184,"cena":1212,"cena_pal":606,"dopravce":"Sedláček","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-13","firma":"Jaso","misto":"Střelice","psc":"66447","bib20":29,"bib5":0,"bib3":30,"pet2":0,"sklo1":0,"pet_prazdne":0,"palet":1,"hmotnost":0.7068,"cena":0,"cena_pal":0,"dopravce":"HORTIM","poznamka":"608971017","dat_nakladky":null,"stav":"new"},{"datum":"2026-02-11","firma":"Taamda","misto":"Praha-Hostivice","psc":"25301","bib20":0,"bib5":0,"bib3":0,"pet2":3648,"sklo1":1764,"pet_prazdne":0,"palet":16,"hmotnost":10.5244,"cena":9696,"cena_pal":606,"dopravce":"Sedláček","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-09","firma":"Flosman","misto":"Planá nad Lužnicí","psc":"39111","bib20":9,"bib5":0,"bib3":0,"pet2":1152,"sklo1":132,"pet_prazdne":0,"palet":5,"hmotnost":2.8664,"cena":5179,"cena_pal":1035.8,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-09","firma":"Hl Drinks","misto":"Praha - Sapa","psc":"14200","bib20":0,"bib5":0,"bib3":0,"pet2":0,"sklo1":252,"pet_prazdne":0,"palet":1,"hmotnost":0.403,"cena":1175,"cena_pal":1175,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-09","firma":"Brabec","misto":"Třebíč","psc":"67401","bib20":0,"bib5":0,"bib3":0,"pet2":576,"sklo1":0,"pet_prazdne":0,"palet":2,"hmotnost":1.2308,"cena":2715,"cena_pal":1357.5,"dopravce":"GEIS","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-06","firma":"Linsan","misto":"Praha 3 - Žižkov","psc":"13000","bib20":0,"bib5":0,"bib3":0,"pet2":1152,"sklo1":1512,"pet_prazdne":0,"palet":8,"hmotnost":4.8296,"cena":9000,"cena_pal":1125,"dopravce":"GEIS","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-05","firma":"Kubík","misto":"Pardubice - Popkovice","psc":"53006","bib20":0,"bib5":0,"bib3":0,"pet2":1152,"sklo1":378,"pet_prazdne":0,"palet":5,"hmotnost":3.0536,"cena":4280,"cena_pal":856,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-05","firma":"Viden","misto":"Jeseník","psc":"79001","bib20":8,"bib5":0,"bib3":0,"pet2":0,"sklo1":756,"pet_prazdne":0,"palet":2,"hmotnost":1.3456,"cena":2321,"cena_pal":1160.5,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-05","firma":"Vrtal","misto":"Jihlava","psc":"58601","bib20":0,"bib5":0,"bib3":25,"pet2":672,"sklo1":0,"pet_prazdne":0,"palet":2,"hmotnost":1.5076,"cena":2420,"cena_pal":1210,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-02","firma":"Hl Drinks","misto":"Praha - Sapa","psc":"14200","bib20":0,"bib5":0,"bib3":0,"pet2":96,"sklo1":126,"pet_prazdne":0,"palet":1,"hmotnost":0.4108,"cena":1145,"cena_pal":1145,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-02","firma":"Flosman","misto":"Planá nad Lužnicí","psc":"39111","bib20":12,"bib5":0,"bib3":0,"pet2":414,"sklo1":120,"pet_prazdne":0,"palet":2,"hmotnost":1.3211,"cena":2673,"cena_pal":1336.5,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-02","firma":"Tamda","misto":"Ústí nad Labem","psc":"40010","bib20":0,"bib5":0,"bib3":0,"pet2":1344,"sklo1":0,"pet_prazdne":0,"palet":4,"hmotnost":2.8552,"cena":5576,"cena_pal":1394,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-02-02","firma":"Ilona Podzimková","misto":"Příbram 1","psc":"26101","bib20":0,"bib5":0,"bib3":0,"pet2":384,"sklo1":0,"pet_prazdne":0,"palet":2,"hmotnost":0.8372,"cena":1969,"cena_pal":984.5,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-01-26","firma":"Eurostár Plus","misto":"Benešov nad Ploučnicí","psc":"40722","bib20":0,"bib5":0,"bib3":0,"pet2":8064,"sklo1":1890,"pet_prazdne":0,"palet":33,"hmotnost":20.1912,"cena":18000,"cena_pal":545,"dopravce":"RAAL K79","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-01-26","firma":"Hl Drinks","misto":"Praha - Sapa","psc":"14200","bib20":0,"bib5":0,"bib3":0,"pet2":672,"sklo1":378,"pet_prazdne":0,"palet":3,"hmotnost":2.0196,"cena":2571,"cena_pal":857,"dopravce":"3M6","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-01-26","firma":"Marvelous","misto":"Praha - Sapa","psc":"14200","bib20":0,"bib5":0,"bib3":0,"pet2":864,"sklo1":1134,"pet_prazdne":0,"palet":6,"hmotnost":3.6222,"cena":5142,"cena_pal":857,"dopravce":"3M6","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-01-26","firma":"Flosman","misto":"Planá nad Lužnicí","psc":"39111","bib20":15,"bib5":0,"bib3":0,"pet2":0,"sklo1":204,"pet_prazdne":0,"palet":1,"hmotnost":0.634,"cena":833,"cena_pal":833,"dopravce":"DD0","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-01-23","firma":"Viden","misto":"Jeseník","psc":"79001","bib20":2,"bib5":0,"bib3":0,"pet2":1152,"sklo1":378,"pet_prazdne":0,"palet":5,"hmotnost":3.094,"cena":4105,"cena_pal":821,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-01-19","firma":"Flosman","misto":"Planá nad Lužnicí","psc":"39111","bib20":12,"bib5":0,"bib3":0,"pet2":408,"sklo1":96,"pet_prazdne":0,"palet":2,"hmotnost":1.2728,"cena":2651,"cena_pal":1325.5,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-01-19","firma":"Tamda","misto":"Ústí nad Labem","psc":"40010","bib20":0,"bib5":0,"bib3":72,"pet2":864,"sklo1":504,"pet_prazdne":0,"palet":5,"hmotnost":2.8826,"cena":5611,"cena_pal":1122,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-01-16","firma":"Kateřina Přadková","misto":"Stráž pod Ralskem","psc":"47127","bib20":0,"bib5":0,"bib3":65,"pet2":36,"sklo1":0,"pet_prazdne":0,"palet":1,"hmotnost":0.3068,"cena":1025,"cena_pal":1025,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-01-12","firma":"Vrtal","misto":"Kutná Hora","psc":"28401","bib20":0,"bib5":0,"bib3":45,"pet2":0,"sklo1":0,"pet_prazdne":0,"palet":1,"hmotnost":0.169,"cena":898,"cena_pal":898,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-01-12","firma":"Flosman","misto":"Planá nad Lužnicí","psc":"39111","bib20":15,"bib5":0,"bib3":0,"pet2":288,"sklo1":156,"pet_prazdne":0,"palet":2,"hmotnost":1.1774,"cena":2586,"cena_pal":1293,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-01-09","firma":"Trafco","misto":"Poděbrady","psc":"29001","bib20":18,"bib5":0,"bib3":30,"pet2":0,"sklo1":0,"pet_prazdne":0,"palet":1,"hmotnost":0.4846,"cena":1185,"cena_pal":1185,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-01-08","firma":"Viden","misto":"Jeseník","psc":"79001","bib20":0,"bib5":0,"bib3":0,"pet2":864,"sklo1":378,"pet_prazdne":0,"palet":4,"hmotnost":2.4382,"cena":3765,"cena_pal":941,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-01-07","firma":"Tamda","misto":"Brno - Šlapanice","psc":"66451","bib20":0,"bib5":0,"bib3":0,"pet2":288,"sklo1":1008,"pet_prazdne":0,"palet":4,"hmotnost":2.2024,"cena":3000,"cena_pal":750,"dopravce":"TSH","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-01-06","firma":"Vrtal","misto":"Jihlava","psc":"58601","bib20":0,"bib5":0,"bib3":10,"pet2":960,"sklo1":0,"pet_prazdne":0,"palet":3,"hmotnost":2.075,"cena":3548,"cena_pal":1182,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-01-06","firma":"Tamda","misto":"Praha - Hostivice","psc":"25301","bib20":0,"bib5":0,"bib3":72,"pet2":1920,"sklo1":3780,"pet_prazdne":0,"palet":16,"hmotnost":10.2364,"cena":11790,"cena_pal":736,"dopravce":"Petr Sedláček","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-01-05","firma":"V - Mark Plus","misto":"Karlovy Vary","psc":"36005","bib20":0,"bib5":0,"bib3":0,"pet2":1152,"sklo1":3402,"pet_prazdne":0,"palet":13,"hmotnost":7.7896,"cena":12000,"cena_pal":923,"dopravce":"OKV Břeclav","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2026-01-05","firma":"Viden","misto":"Jeseník","psc":"79001","bib20":6,"bib5":0,"bib3":10,"pet2":672,"sklo1":378,"pet_prazdne":0,"palet":4,"hmotnost":2.1978,"cena":3612,"cena_pal":903,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2025-12-29","firma":"Hl Drinks","misto":"Praha - Sapa","psc":"14200","bib20":0,"bib5":0,"bib3":0,"pet2":0,"sklo1":252,"pet_prazdne":0,"palet":1,"hmotnost":0.403,"cena":1118,"cena_pal":1118,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2025-12-22","firma":"Flosman","misto":"Planá nad Lužnicí","psc":"39111","bib20":30,"bib5":0,"bib3":0,"pet2":288,"sklo1":72,"pet_prazdne":0,"palet":2,"hmotnost":1.3544,"cena":2699,"cena_pal":1349,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2025-12-18","firma":"Tamda Foods","misto":"Praha - Hostivice","psc":"25301","bib20":0,"bib5":0,"bib3":0,"pet2":2880,"sklo1":2646,"pet_prazdne":0,"palet":16,"hmotnost":10.273,"cena":10000,"cena_pal":625,"dopravce":"Zdeněk Dvořáček","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2025-12-15","firma":"Zbleskz","misto":"České Budějovice","psc":"37001","bib20":0,"bib5":0,"bib3":0,"pet2":2208,"sklo1":2520,"pet_prazdne":0,"palet":14,"hmotnost":8.6564,"cena":11000,"cena_pal":785,"dopravce":"ADM Mášl","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2025-12-15","firma":"Tamda","misto":"Ústí nad Labem","psc":"40010","bib20":0,"bib5":0,"bib3":0,"pet2":1152,"sklo1":378,"pet_prazdne":0,"palet":5,"hmotnost":3.0536,"cena":5513,"cena_pal":1102,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2025-12-10","firma":"Tamda","misto":"Praha - Hostivice","psc":"25301","bib20":0,"bib5":0,"bib3":36,"pet2":3072,"sklo1":2016,"pet_prazdne":0,"palet":15,"hmotnost":9.8118,"cena":12000,"cena_pal":800,"dopravce":"JV - FRUIT","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2025-12-07","firma":"Eurostár Plus","misto":"Benešov nad Ploučnicí","psc":"40502","bib20":0,"bib5":0,"bib3":0,"pet2":3168,"sklo1":4158,"pet_prazdne":0,"palet":22,"hmotnost":13.2814,"cena":18000,"cena_pal":818,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2025-12-04","firma":"Kubík","misto":"Pardubice - Popkovice","psc":"53006","bib20":0,"bib5":0,"bib3":0,"pet2":1440,"sklo1":0,"pet_prazdne":0,"palet":5,"hmotnost":3.077,"cena":5000,"cena_pal":1000,"dopravce":"Zbyněk Brustman","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2025-12-03","firma":"Tamda","misto":"Praha - Hostivice","psc":"25301","bib20":0,"bib5":0,"bib3":0,"pet2":2304,"sklo1":3528,"pet_prazdne":0,"palet":15,"hmotnost":10.3902,"cena":12000,"cena_pal":800,"dopravce":"Jiří Pospíšil","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2025-12-03","firma":"Flosman","misto":"Planá nad Lužnicí","psc":"39111","bib20":21,"bib5":0,"bib3":0,"pet2":984,"sklo1":102,"pet_prazdne":0,"palet":5,"hmotnost":2.7194,"cena":4770,"cena_pal":954,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2025-12-03","firma":"Trafco","misto":"Poděbrady","psc":"29001","bib20":38,"bib5":0,"bib3":0,"pet2":0,"sklo1":0,"pet_prazdne":0,"palet":2,"hmotnost":0.8176,"cena":1919,"cena_pal":959,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2025-12-01","firma":"Max Brands","misto":"Praha - SAPA","psc":"14200","bib20":0,"bib5":0,"bib3":0,"pet2":3552,"sklo1":1890,"pet_prazdne":0,"palet":17,"hmotnost":10.5416,"cena":11591,"cena_pal":681,"dopravce":"DBOIL","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2025-11-26","firma":"Linsan","misto":"Praha 10 Žižkov","psc":"13000","bib20":0,"bib5":0,"bib3":0,"pet2":576,"sklo1":2646,"pet_prazdne":0,"palet":9,"hmotnost":5.3748,"cena":5294,"cena_pal":588,"dopravce":"ČSAD","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2025-11-25","firma":"Tamda Praha","misto":"Hostivice","psc":"25301","bib20":0,"bib5":0,"bib3":0,"pet2":2208,"sklo1":3402,"pet_prazdne":0,"palet":15,"hmotnost":10.0044,"cena":14000,"cena_pal":933,"dopravce":"ČSAD","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2025-11-24","firma":"Flosman","misto":"Planá nad Lužnicí","psc":"39111","bib20":20,"bib5":0,"bib3":0,"pet2":4032,"sklo1":666,"pet_prazdne":0,"palet":16,"hmotnost":10.0686,"cena":9411,"cena_pal":588,"dopravce":"ČSAD","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2025-11-21","firma":"RAPO Brno","misto":"Tišnov","psc":"66603","bib20":0,"bib5":0,"bib3":0,"pet2":576,"sklo1":0,"pet_prazdne":0,"palet":2,"hmotnost":1.2308,"cena":2108,"cena_pal":1054,"dopravce":"Wereldo","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2025-11-18","firma":"Kubík","misto":"Pardubice - Popkovice","psc":"53006","bib20":0,"bib5":0,"bib3":0,"pet2":1728,"sklo1":378,"pet_prazdne":0,"palet":7,"hmotnost":4.2844,"cena":8500,"cena_pal":1214,"dopravce":"Wereldo","poznamka":"","dat_nakladky":"2025-11-24","stav":"confirmed"},{"datum":"2025-11-18","firma":"Tamda Ústí","misto":"Ústí nad Labem","psc":"40010","bib20":0,"bib5":0,"bib3":36,"pet2":864,"sklo1":378,"pet_prazdne":0,"palet":4,"hmotnost":2.5534,"cena":5220,"cena_pal":1305,"dopravce":"Wereldo","poznamka":"","dat_nakladky":"2025-11-24","stav":"confirmed"},{"datum":"2025-11-12","firma":"TAMDA","misto":"Hostivice","psc":"25301","bib20":0,"bib5":0,"bib3":0,"pet2":2016,"sklo1":3024,"pet_prazdne":0,"palet":15,"hmotnost":9.0438,"cena":9500,"cena_pal":633,"dopravce":"JV - FRUIT s.r.o.","poznamka":"","dat_nakladky":null,"stav":"confirmed"},{"datum":"2025-11-11","firma":"Eurostar","misto":"Benešov nad Ploučnicí","psc":"40722","bib20":0,"bib5":0,"bib3":0,"pet2":3744,"sklo1":2646,"pet_prazdne":0,"palet":20,"hmotnost":12.1442,"cena":11000,"cena_pal":550,"dopravce":"Jiří Tošovský, s.r.o.","poznamka":"","dat_nakladky":null,"stav":"confirmed"}];
@@ -2947,5 +3113,43 @@ function showToast(msg, type='info') {
   </div>
 </div>
 
+
+<!-- EDIT ORDER MODAL -->
+<div id="editOrderModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9991;align-items:center;justify-content:center">
+  <div style="background:white;border-radius:16px;padding:28px 32px;width:540px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.2);border:1.5px solid var(--border)">
+    <div style="font-size:16px;font-weight:900;margin-bottom:4px">✏ Upravit objednávku</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:20px" id="eo-subtitle"></div>
+    <input type="hidden" id="eo-id">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div><div class="filter-label" style="margin-bottom:5px">Datum</div>
+        <input type="date" id="eo-datum" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)"></div>
+      <div><div class="filter-label" style="margin-bottom:5px">Datum nakládky</div>
+        <input type="date" id="eo-nakladky" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)"></div>
+      <div style="grid-column:1/-1"><div class="filter-label" style="margin-bottom:5px">Firma *</div>
+        <input type="text" id="eo-firma" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)"></div>
+      <div><div class="filter-label" style="margin-bottom:5px">PSČ</div>
+        <input type="text" id="eo-psc" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)"></div>
+      <div><div class="filter-label" style="margin-bottom:5px">Místo</div>
+        <input type="text" id="eo-misto" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)"></div>
+      <div><div class="filter-label" style="margin-bottom:5px">Palety</div>
+        <input type="number" id="eo-palet" step="0.5" min="0" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg);text-align:right"></div>
+      <div><div class="filter-label" style="margin-bottom:5px">Hmotnost (t)</div>
+        <input type="number" id="eo-hmotnost" step="0.001" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg);text-align:right"></div>
+      <div><div class="filter-label" style="margin-bottom:5px">Dopravce</div>
+        <div style="position:relative">
+          <input type="text" id="eo-dopravce" placeholder="Název nebo RAAL..." style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)" oninput="eoAutocomplete(this.value)" autocomplete="off">
+          <div id="eo-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1.5px solid var(--green-mid);border-radius:8px;margin-top:3px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.12);max-height:150px;overflow-y:auto"></div>
+        </div></div>
+      <div><div class="filter-label" style="margin-bottom:5px">Cena (Kč)</div>
+        <input type="number" id="eo-cena" min="0" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg);text-align:right"></div>
+      <div style="grid-column:1/-1"><div class="filter-label" style="margin-bottom:5px">Poznámka</div>
+        <input type="text" id="eo-poznamka" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+      <button onclick="closeEditOrder()" style="padding:10px 20px;border:1.5px solid var(--border);border-radius:8px;background:transparent;font-family:'Lato',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--text2)">Zrušit</button>
+      <button onclick="saveEditOrder()" style="padding:10px 24px;background:var(--green);color:white;border:none;border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;font-weight:900;cursor:pointer">✓ Uložit změny</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
