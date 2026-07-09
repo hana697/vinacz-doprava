@@ -66,6 +66,8 @@ body { font-family: 'Lato', sans-serif; background: var(--bg); color: var(--text
 .role-kolega:hover { background: var(--green-mid); border-color: var(--green); }
 .role-hana   { background: #e8f0e5; border-color: #a8c8a0; color: var(--green); }
 .role-hana:hover { background: #c8dcc4; border-color: var(--green); }
+.role-nahled  { background: #f0f5ee; border-color: #c4d8be; color: var(--text2); }
+.role-nahled:hover { background: #dce8d8; border-color: var(--green); }
 
 /* ── TOPBAR ── */
 #app { display: none; flex-direction: column; min-height: 100vh; }
@@ -382,6 +384,13 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
             <div class="role-desc">Plná správa, statistiky, dopravci</div>
           </div>
         </button>
+        <button class="role-btn role-nahled" onclick="selectRole('nahled')">
+          <span class="role-icon">👁️</span>
+          <div>
+            <div class="role-name">Náhled</div>
+            <div class="role-desc">Přehled objednávek, stavů a nákladů</div>
+          </div>
+        </button>
       </div>
     </div>
 
@@ -429,7 +438,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
         <div class="sidebar-label">Filtr</div>
         <div class="filter-group">
           <div class="filter-label">Stav</div>
-          <select class="filter-select" id="filterStatus" onchange="applyFilters()">
+          <select class="filter-select" id="filterStatus" onchange="applyFilters(true)">
             <option value="">Vše</option>
             <option value="new">Čeká</option>
             <option value="planned">Zadáno</option>
@@ -438,13 +447,13 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
         </div>
         <div class="filter-group">
           <div class="filter-label">Dopravce</div>
-          <select class="filter-select" id="filterCarrier" onchange="applyFilters()">
+          <select class="filter-select" id="filterCarrier" onchange="applyFilters(true)">
             <option value="">Všichni</option>
           </select>
         </div>
         <div class="filter-group">
           <div class="filter-label">Měsíc</div>
-          <select class="filter-select" id="filterMonth" onchange="applyFilters()">
+          <select class="filter-select" id="filterMonth" onchange="applyFilters(true)">
             <option value="">Vše</option>
           </select>
         </div>
@@ -577,7 +586,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
           <div class="table-toolbar">
             <h3>Přehled objednávek</h3>
             <div class="table-toolbar-right">
-              <input class="search-input" type="text" placeholder="🔍 Firma, místo..." id="searchBox" oninput="applyFilters()">
+              <input class="search-input" type="text" placeholder="🔍 Firma, místo..." id="searchBox" oninput="applyFilters(true)">
               <button class="btn-refresh" onclick="loadOrders()">⟳ Obnovit</button>
               <button class="btn-import" id="importBtn" onclick="importHistorical()" title="Import historických dat z Excelu (pouze jednou)">📥 Import</button>
             </div>
@@ -948,6 +957,100 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
   </div>
 </div>
 
+<!-- EDIT ORDER MODAL -->
+<div id="editOrderModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9998;align-items:center;justify-content:center">
+  <div style="background:white;border-radius:16px;padding:28px 32px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.2);border:1.5px solid var(--border)">
+    <div style="font-size:16px;font-weight:900;margin-bottom:20px">✏️ Upravit objednávku</div>
+    <input type="hidden" id="eo-id">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px">
+        <div>
+          <div style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">Firma *</div>
+          <input type="text" id="eo-firma" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:14px;background:var(--bg)">
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">PSČ *</div>
+          <input type="text" id="eo-psc" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:14px;background:var(--bg)">
+        </div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">Místo doručení *</div>
+        <input type="text" id="eo-misto" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:14px;background:var(--bg)">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <div style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">Datum *</div>
+          <input type="date" id="eo-datum" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)">
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">Datum nakládky</div>
+          <input type="date" id="eo-nakladky" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg)">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+        <div>
+          <div style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">BIB 20L</div>
+          <input type="number" id="eo-bib20" min="0" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:14px;background:var(--bg);text-align:right">
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">BIB 5L</div>
+          <input type="number" id="eo-bib5" min="0" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:14px;background:var(--bg);text-align:right">
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">BIB 3L</div>
+          <input type="number" id="eo-bib3" min="0" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:14px;background:var(--bg);text-align:right">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+        <div>
+          <div style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">PET 2L</div>
+          <input type="number" id="eo-pet2" min="0" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:14px;background:var(--bg);text-align:right">
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">Sklo 1L</div>
+          <input type="number" id="eo-sklo1" min="0" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:14px;background:var(--bg);text-align:right">
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">PET prázdné</div>
+          <input type="number" id="eo-petP" min="0" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:14px;background:var(--bg);text-align:right">
+        </div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">Počet palet *</div>
+        <input type="number" id="eo-palet" min="0" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:14px;background:var(--bg);text-align:right">
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">Poznámka</div>
+        <textarea id="eo-poznamka" rows="2" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg);resize:vertical"></textarea>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+      <button onclick="closeEditOrderModal()"
+        style="padding:10px 20px;border:1.5px solid var(--border);border-radius:8px;background:transparent;font-family:'Lato',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--text2)">
+        Zrušit
+      </button>
+      <button onclick="saveEditOrder()"
+        style="padding:10px 24px;background:var(--green);color:white;border:none;border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;font-weight:900;cursor:pointer">
+        ✓ Uložit změny
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- CARRIER INFO MODAL (read-only contact popup) -->
+<div id="carrierInfoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9998;align-items:center;justify-content:center">
+  <div style="background:white;border-radius:16px;padding:24px 28px;width:360px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,0.2);border:1.5px solid var(--border)">
+    <div id="ci-name" style="font-size:16px;font-weight:900;margin-bottom:14px"></div>
+    <div id="ci-detail" style="font-size:13px;color:var(--text2);display:flex;flex-direction:column;gap:6px"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:20px">
+      <button onclick="closeCarrierInfo()"
+        style="padding:9px 18px;border:1.5px solid var(--border);border-radius:8px;background:transparent;font-family:'Lato',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--text2)">
+        Zavřít
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -959,7 +1062,7 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 // ══════════════════════════════════════════════════════
 
 // Hesla
-const PASSWORDS = { kolega: 'objednavky2026', hana: 'objednavky2026' };
+const PASSWORDS = { kolega: 'objednavky2026', hana: 'objednavky2026', nahled: 'nahled2026' };
 
 // ── EMBEDDED IMAGES ──
 const LOGO_B64 = 'data:image/png;base64,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';
@@ -980,6 +1083,25 @@ let currentPage = 1;
 let kolegaPage  = 1;
 const PAGE_SIZE = 30;
 
+// ── SESSION PERSISTENCE (zůstat přihlášen/a) ──
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 hodin
+const SESSION_KEY = 'vinaczSession';
+function saveSession(role) {
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify({ role, exp: Date.now() + SESSION_TTL_MS })); } catch(e) {}
+}
+function clearSession() {
+  try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+}
+function restoreSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (!s?.role || !s?.exp || Date.now() > s.exp) { clearSession(); return null; }
+    return s.role;
+  } catch(e) { return null; }
+}
+
 // ── INIT ──
 window.addEventListener('DOMContentLoaded', () => {
   const today = new Date().toISOString().split('T')[0];
@@ -991,6 +1113,14 @@ window.addEventListener('DOMContentLoaded', () => {
   } else {
     sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
   }
+
+  const savedRole = restoreSession();
+  if (savedRole && PASSWORDS[savedRole] !== undefined) {
+    currentRole = savedRole;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    setupApp();
+  }
 });
 
 // ── LOGIN ──
@@ -1000,7 +1130,7 @@ function selectRole(role) {
   document.getElementById('loginStep2').style.display = 'block';
   document.getElementById('loginPassword').value = '';
   document.getElementById('loginError').textContent = '';
-  const labels = { kolega: '📦 Objednávky', hana: '🚚 Správa dopravy' };
+  const labels = { kolega: '📦 Objednávky', hana: '🚚 Správa dopravy', nahled: '👁️ Náhled objednávek' };
   document.getElementById('loginRoleLabel').textContent = labels[role];
   setTimeout(() => document.getElementById('loginPassword').focus(), 50);
 }
@@ -1012,6 +1142,7 @@ function doLogin() {
   const pw = document.getElementById('loginPassword').value;
   if (pw === PASSWORDS[pendingRole]) {
     currentRole = pendingRole;
+    saveSession(currentRole);
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     setupApp();
@@ -1024,6 +1155,7 @@ function doLogin() {
 function logout() {
   currentRole = null; pendingRole = null;
   RAW_DATA = []; filtered = [];
+  clearSession();
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
   document.getElementById('loginStep1').style.display = 'block';
@@ -1046,6 +1178,14 @@ function setupApp() {
     nav.innerHTML = `
       <div class="nav-item active-green" onclick="switchKolegaTab('orders')">📦 Nová objednávka</div>
       <div class="nav-item" onclick="switchKolegaTab('pallets')">🪵 Paletové konto</div>`;
+  } else if (currentRole === 'nahled') {
+    badge.textContent = '👁️ Náhled objednávek';
+    document.getElementById('panelKolega').classList.remove('active');
+    document.getElementById('panelOrders').classList.add('active');
+    document.getElementById('panelStats').classList.remove('active');
+    const pp = document.getElementById('panelPallets'); if(pp) pp.classList.remove('active');
+    document.getElementById('filterSection').style.display = 'block';
+    nav.innerHTML = `<div class="nav-item active-gold">📋 Objednávky</div>`;
   } else {
     badge.textContent = '🚚 Správa dopravy';
     document.getElementById('panelKolega').classList.remove('active');
@@ -1103,7 +1243,7 @@ async function loadOrders() {
     populateFilterDropdowns();
     applyFilters();
     renderKolegaList();
-    if (currentRole === 'hana') renderKPIs();
+    if (currentRole === 'hana' || currentRole === 'nahled') renderKPIs();
     hideLoading();
   } catch (err) {
     hideLoading();
@@ -1213,6 +1353,71 @@ async function saveDopravce() {
   }
 }
 
+// ── EDIT ORDER ──
+function openEditOrder(id) {
+  const r = RAW_DATA.find(o => o.id === id);
+  if (!r) return;
+  document.getElementById('eo-id').value = r.id;
+  document.getElementById('eo-firma').value = r.firma || '';
+  document.getElementById('eo-psc').value = r.psc || '';
+  document.getElementById('eo-misto').value = r.misto || '';
+  document.getElementById('eo-datum').value = r.datum || '';
+  document.getElementById('eo-nakladky').value = r.dat_nakladky || '';
+  document.getElementById('eo-bib20').value = r.bib20 || 0;
+  document.getElementById('eo-bib5').value = r.bib5 || 0;
+  document.getElementById('eo-bib3').value = r.bib3 || 0;
+  document.getElementById('eo-pet2').value = r.pet2 || 0;
+  document.getElementById('eo-sklo1').value = r.sklo1 || 0;
+  document.getElementById('eo-petP').value = r.pet_prazdne || 0;
+  document.getElementById('eo-palet').value = r.palet || 0;
+  document.getElementById('eo-poznamka').value = r.poznamka || '';
+  document.getElementById('editOrderModal').style.display = 'flex';
+}
+
+function closeEditOrderModal() {
+  document.getElementById('editOrderModal').style.display = 'none';
+}
+
+async function saveEditOrder() {
+  if (!sbClient) { showToast('Supabase není nakonfigurováno!', 'error'); return; }
+  const id = document.getElementById('eo-id').value;
+  const v = id => parseFloat(document.getElementById(id)?.value) || 0;
+  const s = id => document.getElementById(id)?.value?.trim() || '';
+
+  const firma = s('eo-firma'); const misto = s('eo-misto'); const psc = s('eo-psc'); const datum = s('eo-datum'); const palet = v('eo-palet');
+  if (!firma) { showToast('Vyplňte firmu', 'info'); return; }
+  if (!misto) { showToast('Vyplňte místo doručení', 'info'); return; }
+  if (!psc)   { showToast('PSČ je povinné', 'info'); return; }
+  if (!datum) { showToast('Vyplňte datum', 'info'); return; }
+  if (!palet) { showToast('Zadejte počet palet', 'info'); return; }
+
+  const prodKg = v('eo-bib20')*KG.bib20 + v('eo-bib5')*KG.bib5 + v('eo-bib3')*KG.bib3 +
+    v('eo-pet2')*KG.pet2 + v('eo-sklo1')*KG.sklo1 + v('eo-petP')*KG.petP;
+  const hmotnost = (prodKg + palet * PAL_TARE_KG) / 1000;
+
+  const updates = {
+    firma, misto, psc, datum, palet, hmotnost,
+    bib20: v('eo-bib20'), bib5: v('eo-bib5'), bib3: v('eo-bib3'),
+    pet2: v('eo-pet2'), sklo1: v('eo-sklo1'), pet_prazdne: v('eo-petP'),
+    dat_nakladky: s('eo-nakladky') || null,
+    poznamka: s('eo-poznamka')
+  };
+
+  try {
+    const { error } = await sbClient.from('orders').update(updates).eq('id', id);
+    if (error) throw error;
+    const row = RAW_DATA.find(r => r.id === id);
+    if (row) Object.assign(row, updates);
+    closeEditOrderModal();
+    applyFilters();
+    renderKolegaList();
+    if (currentRole === 'hana' || currentRole === 'nahled') renderKPIs();
+    showToast('✓ Objednávka upravena', 'success');
+  } catch (err) {
+    showToast('Chyba uložení: ' + err.message, 'error');
+  }
+}
+
 async function setStatusDirect(id, status) {
   if (!sbClient) return;
   try {
@@ -1222,7 +1427,7 @@ async function setStatusDirect(id, status) {
     if (row) row.stav = status;
     applyFilters();
     renderKolegaList();
-    if (currentRole === 'hana') renderKPIs();
+    if (currentRole === 'hana' || currentRole === 'nahled') renderKPIs();
   } catch (err) {
     showToast('Chyba aktualizace: ' + err.message, 'error');
   }
@@ -1261,7 +1466,7 @@ function populateFilterDropdowns() {
   mSel.value = mprev;
 }
 
-function applyFilters() {
+function applyFilters(resetPage = false) {
   const status  = document.getElementById('filterStatus')?.value  || '';
   const carrier = document.getElementById('filterCarrier')?.value || '';
   const month   = document.getElementById('filterMonth')?.value   || '';
@@ -1274,7 +1479,7 @@ function applyFilters() {
     if (search  && !`${r.firma} ${r.misto} ${r.dopravce}`.toLowerCase().includes(search)) return false;
     return true;
   });
-  currentPage = 1;
+  if (resetPage) currentPage = 1;
   renderTable();
   renderKPIs();
 }
@@ -1282,15 +1487,18 @@ function applyFilters() {
 function clearFilters() {
   ['filterStatus','filterCarrier','filterMonth'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('searchBox').value = '';
-  applyFilters();
+  applyFilters(true);
 }
 
 // ── RENDER TABLE (Hana) ──
 function renderTable() {
+  const maxPage = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  if (currentPage > maxPage) currentPage = maxPage;
   const start = (currentPage-1)*PAGE_SIZE;
   const page  = filtered.slice(start, start+PAGE_SIZE);
   const tbody = document.getElementById('ordersTbody');
   if (!tbody) return;
+  const readOnly = currentRole === 'nahled';
 
   tbody.innerHTML = page.map(r => {
     const stav = r.stav || 'new';
@@ -1303,23 +1511,14 @@ function renderTable() {
     const cena = r.cena > 0 ? Math.round(r.cena).toLocaleString('cs') : '–';
     const cPal = r.cena_pal > 0 ? Math.round(r.cena_pal).toLocaleString('cs') : '–';
     const note = r.poznamka ? `<span class="note-pill" title="${r.poznamka}">📝 ${r.poznamka.slice(0,18)}${r.poznamka.length>18?'…':''}</span>` : '–';
-    return `<tr class="${rowCls}">
-      <td style="text-align:center"><input type="checkbox" class="row-check" data-id="${r.id}" data-dopravce="${r.dopravce||''}" style="cursor:pointer;accent-color:var(--green)" onchange="updateBulkBar()"></td>
-      <td class="mono" style="font-size:11px">${r.datum||''}</td>
-      <td><div class="firm-name">${r.firma}</div><div class="firm-city">${r.psc||''} ${r.misto}</div></td>
-      <td style="font-size:12px">${r.misto}</td>
-      <td class="mono fw">${r.palet||'–'}</td>
-      <td class="mono">${(r.hmotnost||0).toFixed(3)}</td>
-      <td style="font-size:11px">${r.dat_nakladky||'–'}</td>
-      <td style="font-size:12px">${r.dopravce||'–'}</td>
-      <td class="mono fw">${cena}</td>
-      <td class="mono" style="font-size:11px;color:var(--muted)">${cPal}</td>
-      <td>${note}</td>
-      <td>${tag}</td>
-      <td>
+    const dopravceCell = r.dopravce
+      ? `<span class="carrier-link" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px" onclick="showCarrierInfo('${r.dopravce.replace(/'/g,"\\'")}')" title="Zobrazit kontakt na dopravce">${r.dopravce}</span>`
+      : '–';
+    const actionsCell = readOnly ? '' : `
         <div class="action-btns">
           <button class="btn-sm btn-plan"    onclick="setStatusDirect('${r.id}','planned')">Zadat</button>
           <button class="btn-sm btn-confirm" onclick="setStatus('${r.id}','confirmed')">✓ Potvrdit</button>
+          <button class="btn-sm" style="border:1.5px solid var(--border2);background:var(--white);color:var(--text2)" onclick="openEditOrder('${r.id}')" title="Upravit objednávku">✏️</button>
           ${r.dopravce ? `<button class="btn-sm" style="border:1.5px solid var(--green-mid);background:var(--green-pale);color:var(--green)" onclick="generatePdf('${r.id}')" title="Objednávka přepravy">📄</button>` : ''}
           ${(() => {
             const existing = PALLETS_DATA.find(p => p.order_id === r.id);
@@ -1333,8 +1532,21 @@ function renderTable() {
             }
             return `<button class="btn-sm" style="border:1.5px solid #c2d9bb;background:#f0f5ee;color:#3d6b4f" onclick="openPalletFromOrder('${r.id}')" title="Zapsat palety">🪵</button>`;
           })()}
-        </div>
-      </td>
+        </div>`;
+    return `<tr class="${rowCls}">
+      <td style="text-align:center">${readOnly ? '' : `<input type="checkbox" class="row-check" data-id="${r.id}" data-dopravce="${r.dopravce||''}" style="cursor:pointer;accent-color:var(--green)" onchange="updateBulkBar()">`}</td>
+      <td class="mono" style="font-size:11px">${r.datum||''}</td>
+      <td><div class="firm-name">${r.firma}</div><div class="firm-city">${r.psc||''} ${r.misto}</div></td>
+      <td style="font-size:12px">${r.misto}</td>
+      <td class="mono fw">${r.palet||'–'}</td>
+      <td class="mono">${(r.hmotnost||0).toFixed(3)}</td>
+      <td style="font-size:11px">${r.dat_nakladky||'–'}</td>
+      <td style="font-size:12px">${dopravceCell}</td>
+      <td class="mono fw">${cena}</td>
+      <td class="mono" style="font-size:11px;color:var(--muted)">${cPal}</td>
+      <td>${note}</td>
+      <td>${tag}</td>
+      <td>${actionsCell}</td>
     </tr>`;
   }).join('') || `<tr><td colspan="13"><div class="empty-state">🔍 Žádné výsledky</div></td></tr>`;
 
@@ -1376,7 +1588,9 @@ function renderKolegaList() {
       <td class="mono">${(r.hmotnost||0).toFixed(3)}</td>
       <td style="font-size:11px">${r.poznamka ? `<span class="note-pill" title="${r.poznamka}">${r.poznamka.slice(0,22)}</span>` : '–'}</td>
       <td>${tag}</td>
-      <td>${(() => {
+      <td>
+        <button class="btn-sm" style="border:1.5px solid var(--border2);background:var(--white);color:var(--text2);font-size:11px" onclick="openEditOrder('${r.id}')" title="Upravit objednávku">✏️ Upravit</button>
+        ${(() => {
         const existing = PALLETS_DATA.find(p => p.order_id === r.id);
         if (existing) {
           const dluzno = (existing.odvezeno||0) - (existing.vraceno||0);
@@ -1401,7 +1615,7 @@ function renderKolegaList() {
 
 // ── KPIs ──
 function renderKPIs() {
-  if (currentRole !== 'hana') return;
+  if (currentRole !== 'hana' && currentRole !== 'nahled') return;
   document.getElementById('kpi-total').textContent = RAW_DATA.length;
   document.getElementById('kpi-total-sub').textContent = 'celkem v databázi';
   document.getElementById('kpi-new').textContent = RAW_DATA.filter(r=>r.stav==='new').length;
@@ -1527,6 +1741,28 @@ function renderCarrierGrid() {
         <button class="btn-sm" style="border:1.5px solid var(--red-row-border);background:var(--red-row);color:var(--red)" onclick="deleteCarrier('${c.id}','${c.nazev.replace(/'/g,'\'')}')">✕</button>
       </div>
     </div>`).join('');
+}
+
+function showCarrierInfo(nazev) {
+  const c = CARRIERS_DATA.find(x => x.nazev?.trim().toLowerCase() === nazev.trim().toLowerCase());
+  document.getElementById('ci-name').textContent = nazev;
+  const detail = document.getElementById('ci-detail');
+  if (!c) {
+    detail.innerHTML = '<div style="color:var(--muted)">Dopravce není v evidenci — žádné kontaktní údaje.</div>';
+  } else {
+    detail.innerHTML = [
+      c.telefon ? `📞 ${c.telefon}` : '',
+      c.email ? `✉ ${c.email}` : '',
+      c.adresa ? `📍 ${c.adresa}` : '',
+      c.ico ? `IČO: ${c.ico}${c.dic ? ' · DIČ: ' + c.dic : ''}` : '',
+      c.raal ? `RAAL: ${c.raal}` : '',
+      c.poznamka ? `📝 ${c.poznamka}` : ''
+    ].filter(Boolean).map(line => `<div>${line}</div>`).join('') || '<div style="color:var(--muted)">Žádné kontaktní údaje vyplněny.</div>';
+  }
+  document.getElementById('carrierInfoModal').style.display = 'flex';
+}
+function closeCarrierInfo() {
+  document.getElementById('carrierInfoModal').style.display = 'none';
 }
 
 function lookupCarrierByRaal(raal) {
