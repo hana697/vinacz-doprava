@@ -884,8 +884,20 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
         <input type="number" id="pdfconf-hmotnost" step="0.001" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg);text-align:right">
       </div>
       <div style="grid-column:1/-1">
-        <div class="filter-label" style="margin-bottom:5px">Cena za přepravu (Kč)</div>
-        <input type="number" id="pdfconf-cena" min="0" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg);text-align:right">
+        <div class="filter-label" style="margin-bottom:5px">Cena za přepravu</div>
+        <div style="display:grid;grid-template-columns:1fr 130px;gap:10px">
+          <input type="number" id="pdfconf-cena" min="0" step="0.01" oninput="onKurzChange()" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;background:var(--bg);text-align:right">
+          <select id="pdfconf-mena" onchange="onMenaChange(true)" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;font-weight:700;background:var(--bg);cursor:pointer">
+            <option value="CZK">Kč</option>
+            <option value="EUR">€ EUR</option>
+          </select>
+        </div>
+        <div id="pdfconf-kurz-wrap" style="display:none;align-items:center;flex-wrap:wrap;gap:8px;margin-top:9px;padding:8px 11px;background:var(--green-pale);border:1.5px solid var(--green-mid);border-radius:8px;font-size:12px;color:var(--text2)">
+          <span>Kurz pro přepočet do statistik:</span>
+          <input type="number" id="pdfconf-kurz" step="0.01" min="0" value="25" oninput="onKurzChange()" style="width:80px;padding:5px 8px;border:1.5px solid var(--green-mid);border-radius:6px;font-family:'Lato',sans-serif;font-size:12px;background:white;text-align:right">
+          <span>Kč / €</span>
+          <span id="pdfconf-kurz-info" style="font-weight:700"></span>
+        </div>
       </div>
       <div style="grid-column:1/-1">
         <div class="filter-label" style="margin-bottom:5px">Poznámka</div>
@@ -1882,6 +1894,58 @@ function getCarrierForOrder(order) {
   ) || null;
 }
 
+// ── MĚNA OBJEDNÁVKY (Kč / EUR) ──
+const KURZ_KEY = 'vinacz_eur_kurz';
+
+// Formátuje částku podle měny: 12 500 Kč / 850,00 €
+function fmtMena(v, mena) {
+  if (mena === 'EUR') return (Math.round(v * 100) / 100).toLocaleString('cs', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  return Math.round(v).toLocaleString('cs') + ' Kč';
+}
+
+function getKurz() {
+  const v = parseFloat(document.getElementById('pdfconf-kurz')?.value);
+  return v > 0 ? v : 25;
+}
+
+// Nastaví dialog na danou měnu. convert = true → přepočítá už zadanou částku kurzem.
+function setMenaUI(mena, convert) {
+  const sel = document.getElementById('pdfconf-mena');
+  const cenaEl = document.getElementById('pdfconf-cena');
+  const kurzEl = document.getElementById('pdfconf-kurz');
+  const prev = sel.dataset.prev || 'CZK';
+  sel.value = mena;
+  if (kurzEl && !convert) {
+    const saved = parseFloat(localStorage.getItem(KURZ_KEY));
+    if (saved > 0) kurzEl.value = saved;
+  }
+  if (convert && prev !== mena) {
+    const val = parseFloat(cenaEl.value) || 0;
+    if (val > 0) {
+      const kurz = getKurz();
+      cenaEl.value = mena === 'EUR' ? (Math.round(val / kurz * 100) / 100) : Math.round(val * kurz);
+    }
+  }
+  sel.dataset.prev = mena;
+  cenaEl.step = mena === 'EUR' ? '0.01' : '1';
+  document.getElementById('pdfconf-kurz-wrap').style.display = mena === 'EUR' ? 'flex' : 'none';
+  onKurzChange();
+}
+
+function onMenaChange(convert) {
+  setMenaUI(document.getElementById('pdfconf-mena').value, convert);
+}
+
+function onKurzChange() {
+  const info = document.getElementById('pdfconf-kurz-info');
+  if (!info) return;
+  if (document.getElementById('pdfconf-mena').value !== 'EUR') { info.textContent = ''; return; }
+  const kurz = getKurz();
+  localStorage.setItem(KURZ_KEY, kurz);
+  const val = parseFloat(document.getElementById('pdfconf-cena').value) || 0;
+  info.textContent = val > 0 ? '≈ ' + Math.round(val * kurz).toLocaleString('cs') + ' Kč' : '';
+}
+
 function generatePdf(orderId) {
   const order = RAW_DATA.find(r => r.id === orderId);
   if (!order) return;
@@ -1899,6 +1963,7 @@ function generatePdf(orderId) {
   document.getElementById('pdfconf-palet').value = order.palet || '';
   document.getElementById('pdfconf-hmotnost').value = Number(order.hmotnost || 0).toFixed(3);
   document.getElementById('pdfconf-cena').value = order.cena > 0 ? Math.round(order.cena) : '';
+  setMenaUI('CZK', false);
   document.getElementById('pdfconf-poznamka').value = order.poznamka || '';
   document.getElementById('pdfconf-nakladka-misto').value = order.nakladka_misto || '';
   document.getElementById('pdfConfirmModal').style.display = 'flex';
@@ -1931,6 +1996,8 @@ function renderAndShowPdf() {
   const palet = document.getElementById('pdfconf-palet').value;
   const hmotnost = parseFloat(document.getElementById('pdfconf-hmotnost').value) || order?.hmotnost || 0;
   const cena = parseFloat(document.getElementById('pdfconf-cena').value) || 0;
+  const mena = document.getElementById('pdfconf-mena').value || 'CZK';
+  const kurz = getKurz();
   const poznamka = document.getElementById('pdfconf-poznamka').value;
 
   const nakladkaRadky = nakladkaMisto
@@ -2007,7 +2074,7 @@ function renderAndShowPdf() {
 
       <div style="margin-top:12px;border-top:1px solid #c2d9bb;padding-top:10px;font-size:12px">
         <span style="font-weight:700;text-decoration:underline">Cena za přepravu:</span>
-        &nbsp;&nbsp; <strong style="font-size:15px;color:#3d6b4f">${cena > 0 ? Math.round(cena).toLocaleString('cs') + ' Kč' : '– Kč'}</strong>
+        &nbsp;&nbsp; <strong style="font-size:15px;color:#3d6b4f">${cena > 0 ? fmtMena(cena, mena) : (mena === 'EUR' ? '– €' : '– Kč')}</strong>
         <span style="color:#666;font-size:12px"> &nbsp; splatnost 60 dní</span>
       </div>
 
@@ -2045,10 +2112,15 @@ function renderAndShowPdf() {
   document.getElementById('pdfPreviewModal').style.display = 'flex';
 
   if (!isBulk && order) {
+    // Do databáze (a tedy do přehledů a statistik) ukládáme vždy Kč — EUR přepočteme kurzem.
+    const cenaCzk = mena === 'EUR' ? Math.round(cena * kurz) : cena;
+    if (mena === 'EUR' && cena > 0) {
+      showToast(`Objednávka je na ${fmtMena(cena, 'EUR')} — do statistik uloženo ${cenaCzk.toLocaleString('cs')} Kč (kurz ${kurz})`, 'info');
+    }
     const updates = {
       palet: parseFloat(palet) || order.palet,
       hmotnost: parseFloat(hmotnost) || order.hmotnost,
-      cena: cena > 0 ? cena : order.cena,
+      cena: cenaCzk > 0 ? cenaCzk : order.cena,
       poznamka,
       dat_nakladky: nakladkaDatum || null,
       nakladka_misto: nakladkaMisto || null
@@ -2065,6 +2137,16 @@ function renderAndShowPdf() {
 
 function closePdfModal() {
   document.getElementById('pdfPreviewModal').style.display = 'none';
+}
+
+// Zpět z náhledu do dialogu s údaji (tlačítko „← Upravit")
+function backToPdfEdit() {
+  document.getElementById('pdfPreviewModal').style.display = 'none';
+  document.getElementById('pdfConfirmModal').style.display = 'flex';
+}
+
+function closePdfEdit() {
+  document.getElementById('pdfEditModal').style.display = 'none';
 }
 
 function printPdf() {
@@ -2262,6 +2344,7 @@ function bulkGeneratePdf() {
   document.getElementById('pdfconf-palet').value = totalPalet;
   document.getElementById('pdfconf-hmotnost').value = totalHmotnost.toFixed(3);
   document.getElementById('pdfconf-cena').value = totalCena > 0 ? Math.round(totalCena) : '';
+  setMenaUI('CZK', false);
   document.getElementById('pdfconf-poznamka').value = '';
 
   // Store carrier for bulk render
