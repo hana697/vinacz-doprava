@@ -209,7 +209,57 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
 .firm-city { font-size: 11px; color: var(--muted); margin-top: 1px; }
 .mono      { font-family: 'DM Mono', monospace; }
 .fw        { font-weight: 700; }
-.note-pill { display: inline-block; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--text2); cursor: help; }
+.note-pill { display: inline-block; max-width: 108px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--text2); cursor: help; }
+
+/* Čísla objednávek — v tabulce pod sebou, aby dlouhé číslo neroztahovalo sloupec */
+.cisla-cell { min-width: 78px; max-width: 110px; padding-left: 8px !important; padding-right: 8px !important; font-family: 'DM Mono', monospace; font-size: 10px; line-height: 1.45; overflow-wrap: anywhere; word-break: break-word; }
+.cisla-cell div { white-space: normal; }
+thead th.cisla-cell { letter-spacing: 0.3px; font-size: 9px; }
+/* Úzké číselné sloupce — menší vycpávka, ať se tabulka vejde do okna i s novým sloupcem */
+.tight { padding-left: 8px !important; padding-right: 8px !important; }
+.cisla-wrap { display: flex; flex-direction: column; gap: 6px; }
+.cislo-row  { display: flex; gap: 6px; align-items: center; }
+.cislo-row input { flex: 1; min-width: 0; }
+.cislo-x {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: 6px; cursor: pointer;
+  border: 1.5px solid var(--border); background: var(--white); color: var(--muted);
+  font-family: 'Lato', sans-serif; font-size: 13px; font-weight: 900; line-height: 1;
+}
+.cislo-x:hover { border-color: #fecaca; background: #fef2f2; color: #dc2626; }
+.cislo-add {
+  align-self: flex-start; padding: 5px 12px; border-radius: 6px; cursor: pointer;
+  border: 1.5px dashed var(--green-mid); background: var(--green-pale); color: var(--green);
+  font-family: 'Lato', sans-serif; font-size: 12px; font-weight: 900;
+}
+.cislo-add:hover { background: var(--green-mid); color: var(--white); }
+.cislo-add:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Zvonek + okno „co čeká na dořešení" */
+.bell-btn {
+  position: relative; padding: 7px 12px; border-radius: 8px; cursor: pointer;
+  border: 1.5px solid var(--border); background: var(--white);
+  font-family: 'Lato', sans-serif; font-size: 15px; line-height: 1;
+}
+.bell-btn:hover { border-color: var(--green-mid); background: var(--green-pale); }
+.bell-badge {
+  position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 4px;
+  border-radius: 9px; background: #dc2626; color: #fff; font-size: 10px; font-weight: 900;
+  line-height: 18px; text-align: center; box-shadow: 0 0 0 2px var(--white);
+}
+.todo-group { margin-bottom: 18px; }
+.todo-group-head {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  font-size: 13px; font-weight: 900; color: var(--text);
+}
+.todo-count { padding: 1px 8px; border-radius: 20px; font-size: 11px; font-weight: 900; }
+.todo-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.todo-table th {
+  text-align: left; padding: 5px 8px; font-size: 9px; font-weight: 900; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--muted); border-bottom: 1.5px solid var(--border); white-space: nowrap;
+}
+.todo-table td { padding: 7px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.todo-note { color: var(--text2); overflow-wrap: anywhere; }
+.todo-empty { font-size: 12px; color: var(--muted); font-style: italic; padding: 4px 8px; }
 
 /* Legend */
 .legend { display: flex; gap: 16px; padding: 8px 18px; border-bottom: 1px solid var(--border); }
@@ -422,6 +472,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
       <span class="brand-module">Správa dopravy</span>
     </div>
     <div class="topbar-right">
+      <button class="bell-btn" id="bellBtn" style="display:none" onclick="openTodoModal(true)" title="Co čeká na dořešení">🔔<span class="bell-badge" id="bellBadge" style="display:none"></span></button>
       <div class="user-badge" id="userBadge"></div>
       <button class="logout-btn" onclick="logout()">Odhlásit</button>
     </div>
@@ -490,6 +541,10 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
               <label>Místo doručení <span class="required-star">*</span></label>
               <input type="text" id="f-misto" placeholder="Město, ulice...">
             </div>
+            <div class="form-group form-full">
+              <label>Číslo objednávky <span style="color:var(--muted);font-weight:400;font-size:10px;text-transform:none;letter-spacing:0">(nepovinné, můžete přidat víc čísel)</span></label>
+              <div class="cisla-wrap" id="f-cisla-wrap"></div>
+            </div>
 
             <div class="form-divider">📦 Množství zboží</div>
             <div class="form-group form-num"><label>20l BIB (ks)</label><input type="number" id="f-bib20" min="0" placeholder="0" oninput="calcPreview()"></div>
@@ -534,7 +589,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
           <div style="overflow-x:auto">
             <table>
               <thead><tr>
-                <th>Datum</th><th>Firma</th><th>Místo</th><th>Palety</th><th>Hmotnost (t)</th><th>Poznámka</th><th>Stav</th><th>Palety</th>
+                <th>Datum</th><th class="cisla-cell">Č. obj.</th><th>Firma</th><th>Místo</th><th>Palety</th><th>Hmotnost (t)</th><th>Poznámka</th><th>Stav</th><th>Palety</th>
               </tr></thead>
               <tbody id="kolegaTbody"></tbody>
             </table>
@@ -607,8 +662,8 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
           <div style="overflow-x:auto">
             <table>
               <thead><tr>
-                <th style="width:32px"><input type="checkbox" id="checkAll" onclick="toggleCheckAll(this)" style="cursor:pointer;accent-color:var(--green)"></th><th>Datum</th><th>Firma</th><th>Místo / PSČ</th><th>Pal</th><th>Hmotnost (t)</th>
-                <th>Nakládka</th><th>Dopravce</th><th>Cena (Kč)</th><th>Kč/pal</th><th>Poznámka</th><th>Stav</th><th>Akce</th>
+                <th style="width:32px"><input type="checkbox" id="checkAll" onclick="toggleCheckAll(this)" style="cursor:pointer;accent-color:var(--green)"></th><th>Datum</th><th class="cisla-cell">Č. obj.</th><th>Firma / místo</th><th class="tight">Pal</th><th class="tight">Hmotnost (t)</th>
+                <th class="tight">Nakládka</th><th>Dopravce</th><th class="tight">Cena (Kč)</th><th class="tight">Kč/pal</th><th>Poznámka</th><th>Stav</th><th>Akce</th>
               </tr></thead>
               <tbody id="ordersTbody"></tbody>
             </table>
@@ -991,6 +1046,10 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
         <div style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">Místo doručení *</div>
         <input type="text" id="eo-misto" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:14px;background:var(--bg)">
       </div>
+      <div>
+        <div style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">Číslo objednávky</div>
+        <div class="cisla-wrap" id="eo-cisla-wrap"></div>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div>
           <div style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">Datum *</div>
@@ -1065,6 +1124,24 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
   </div>
 </div>
 
+<!-- TODO MODAL (co čeká na dořešení) -->
+<div id="todoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9997;align-items:center;justify-content:center">
+  <div style="background:white;border-radius:16px;padding:26px 30px;width:820px;max-width:95vw;max-height:88vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.2);border:1.5px solid var(--border)">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:18px">
+      <div style="font-size:16px;font-weight:900">🔔 Co čeká na dořešení</div>
+      <div style="font-size:12px;color:var(--muted)" id="todo-datum"></div>
+    </div>
+    <div id="todoContent"></div>
+    <div style="display:flex;gap:14px;margin-top:22px;justify-content:space-between;align-items:center;flex-wrap:wrap">
+      <div style="font-size:11px;color:var(--muted)">Okno se otevře 1× denně; znovu si ho vyvoláš zvonkem 🔔 vpravo nahoře.</div>
+      <button onclick="closeTodoModal()"
+        style="padding:10px 22px;background:var(--green);color:white;border:none;border-radius:8px;font-family:'Lato',sans-serif;font-size:13px;font-weight:900;cursor:pointer">
+        Zavřít
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1120,6 +1197,7 @@ function restoreSession() {
 window.addEventListener('DOMContentLoaded', () => {
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('f-datum').value = today;
+  renderCislaWidget('f', ['']);
 
   if (SUPABASE_URL.startsWith('REPLACE') || SUPABASE_ANON.startsWith('REPLACE')) {
     document.getElementById('configBanner').style.display = 'block';
@@ -1174,6 +1252,8 @@ function logout() {
   document.getElementById('app').style.display = 'none';
   document.getElementById('loginStep1').style.display = 'block';
   document.getElementById('loginStep2').style.display = 'none';
+  document.getElementById('bellBtn').style.display = 'none';
+  closeTodoModal();
 }
 
 // ── APP SETUP ──
@@ -1259,11 +1339,174 @@ async function loadOrders() {
     renderKolegaList();
     if (currentRole === 'hana' || currentRole === 'nahled') renderKPIs();
     hideLoading();
+    maybeShowTodoModal();
   } catch (err) {
     hideLoading();
     showToast('Chyba načítání: ' + err.message, 'error');
     console.error(err);
   }
+}
+
+// ══════════════════════════════════════════════
+// 🔔 CO ČEKÁ NA DOŘEŠENÍ (okno po otevření + zvonek)
+// ══════════════════════════════════════════════
+const TODO_SHOWN_KEY = 'vinacz_todo_shown';
+
+// Dvě skupiny podle stavu: Čeká (ještě nezadané dopravcům) / Zadáno žlutým tlačítkem, ale ještě není dopravce.
+function collectTodo() {
+  const byDatum = (a, b) => String(a.datum || '').localeCompare(String(b.datum || ''));
+  return {
+    nezadane: RAW_DATA.filter(r => (r.stav || 'new') === 'new').sort(byDatum),
+    zadane:   RAW_DATA.filter(r => r.stav === 'planned').sort(byDatum)
+  };
+}
+
+function todoRows(list, withCarrier) {
+  const dash = '<span style="color:var(--muted)">–</span>';
+  return list.map(r => `<tr>
+    <td class="mono" style="font-size:11px;white-space:nowrap">${escHtml(r.datum || '')}</td>
+    <td><div class="firm-name">${escHtml(r.firma || '')}</div><div class="firm-city">${escHtml(((r.psc || '') + ' ' + (r.misto || '')).trim())}</div></td>
+    ${withCarrier ? `<td style="font-size:12px;font-weight:700">${r.dopravce ? escHtml(r.dopravce) : dash}</td>` : ''}
+    <td class="todo-note">${r.poznamka ? escHtml(r.poznamka) : dash}</td>
+  </tr>`).join('');
+}
+
+function renderTodo() {
+  const { nezadane, zadane } = collectTodo();
+  const group = (title, color, bg, list, withCarrier) => `
+    <div class="todo-group">
+      <div class="todo-group-head">
+        <span class="todo-count" style="background:${bg};color:${color}">${list.length}</span>
+        ${title}
+      </div>
+      ${list.length ? `<table class="todo-table">
+          <thead><tr><th style="width:82px">Datum</th><th>Firma / místo</th>${withCarrier ? '<th style="width:150px">Dopravce</th>' : ''}<th>Poznámka</th></tr></thead>
+          <tbody>${todoRows(list, withCarrier)}</tbody>
+        </table>`
+        : '<div class="todo-empty">Nic tu nevisí 👍</div>'}
+    </div>`;
+
+  const box = document.getElementById('todoContent');
+  if (box) {
+    box.innerHTML =
+      group('Čeká — ještě nezadané dopravcům', 'var(--text2)', 'var(--bg)', nezadane, false) +
+      // sloupec Dopravce jen když u některé zadané objednávky někdo je (jinak by to byly samé pomlčky)
+      group('Zadáno — čeká na dopravce', '#92620a', '#fef9e7', zadane, zadane.some(r => (r.dopravce || '').trim()));
+  }
+  const d = document.getElementById('todo-datum');
+  if (d) d.textContent = new Date().toLocaleDateString('cs');
+  return nezadane.length + zadane.length;
+}
+
+function updateTodoBadge(count) {
+  const bell = document.getElementById('bellBtn');
+  const badge = document.getElementById('bellBadge');
+  if (!bell || !badge) return;
+  if (currentRole !== 'hana') { bell.style.display = 'none'; return; }
+  bell.style.display = 'block';
+  badge.style.display = count > 0 ? 'block' : 'none';
+  badge.textContent = count > 99 ? '99+' : count;
+  bell.title = count > 0 ? `Čeká na dořešení: ${count}` : 'Nic nečeká na dořešení';
+}
+
+function refreshTodoBadge() {
+  if (currentRole !== 'hana') return;
+  const { nezadane, zadane } = collectTodo();
+  updateTodoBadge(nezadane.length + zadane.length);
+}
+
+function openTodoModal(force = false) {
+  if (currentRole !== 'hana') return;
+  const count = renderTodo();
+  updateTodoBadge(count);
+  if (count === 0) {
+    if (force) showToast('✓ Nic nečeká na dořešení', 'success');
+    return;
+  }
+  document.getElementById('todoModal').style.display = 'flex';
+}
+
+function closeTodoModal() {
+  document.getElementById('todoModal').style.display = 'none';
+}
+
+// Automaticky 1× denně po načtení dat; zvonkem kdykoliv znovu.
+function maybeShowTodoModal() {
+  if (currentRole !== 'hana') { updateTodoBadge(0); return; }
+  const count = renderTodo();
+  updateTodoBadge(count);
+  if (count === 0) return;
+  const today = new Date().toISOString().split('T')[0];
+  let shown = null;
+  try { shown = localStorage.getItem(TODO_SHOWN_KEY); } catch (e) {}
+  if (shown === today) return;
+  try { localStorage.setItem(TODO_SHOWN_KEY, today); } catch (e) {}
+  document.getElementById('todoModal').style.display = 'flex';
+}
+
+// ── ČÍSLA OBJEDNÁVEK (dynamická pole, nepovinné) ──
+const CISLA_MAX = 5;
+const CISLO_INPUT_STYLE = "padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Mono',monospace;font-size:13px;background:var(--bg)";
+
+function escHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// V databázi je jeden textový sloupec, čísla oddělená čárkou.
+function parseCisla(raw) {
+  return String(raw || '').split(',').map(v => v.trim()).filter(Boolean);
+}
+
+function readCislaInputs(prefix) {
+  return [...document.querySelectorAll(`#${prefix}-cisla-wrap .cislo-row input`)].map(i => i.value.trim());
+}
+
+function getCisla(prefix) {
+  return readCislaInputs(prefix).filter(Boolean);
+}
+
+function renderCislaWidget(prefix, values) {
+  const wrap = document.getElementById(prefix + '-cisla-wrap');
+  if (!wrap) return;
+  const list = (values && values.length ? values : ['']).slice(0, CISLA_MAX);
+  wrap.innerHTML = list.map((v, i) => `
+    <div class="cislo-row">
+      <input type="text" maxlength="20" value="${escHtml(v)}" placeholder="${i === 0 ? 'např. 123456789' : 'další číslo'}" style="${CISLO_INPUT_STYLE}">
+      <button type="button" class="cislo-x" onclick="removeCisloRow('${prefix}', this)" title="Smazat řádek">✕</button>
+    </div>`).join('') +
+    `<button type="button" class="cislo-add" id="${prefix}-cisla-add" onclick="addCisloRow('${prefix}')">+ přidat číslo</button>`;
+  const btn = document.getElementById(prefix + '-cisla-add');
+  if (btn) btn.disabled = list.length >= CISLA_MAX;
+}
+
+function addCisloRow(prefix) {
+  const values = readCislaInputs(prefix);
+  if (values.length >= CISLA_MAX) return;
+  values.push('');
+  renderCislaWidget(prefix, values);
+  const inputs = document.querySelectorAll(`#${prefix}-cisla-wrap .cislo-row input`);
+  inputs[inputs.length - 1]?.focus();
+}
+
+function removeCisloRow(prefix, btn) {
+  const rows = [...document.querySelectorAll(`#${prefix}-cisla-wrap .cislo-row`)];
+  const idx = rows.indexOf(btn.closest('.cislo-row'));
+  const values = readCislaInputs(prefix);
+  if (idx > -1) values.splice(idx, 1);
+  renderCislaWidget(prefix, values.length ? values : ['']);
+}
+
+// Buňka do tabulek — čísla pod sebou, ať dlouhé číslo neroztahuje sloupec.
+function cislaCell(r) {
+  const list = parseCisla(r.cisla_obj);
+  return list.length
+    ? list.map(v => `<div>${escHtml(v)}</div>`).join('')
+    : '<span style="color:var(--muted)">–</span>';
+}
+
+// Kdyby v Supabase sloupec cisla_obj ještě nebyl, appka musí ukládat dál (jen bez čísel).
+function isMissingCislaColumn(err) {
+  return /cisla_obj/i.test((err?.message || '') + ' ' + (err?.details || ''));
 }
 
 // ── SUBMIT ORDER ──
@@ -1295,6 +1538,7 @@ async function submitOrder() {
     palet, hmotnost, cena: 0, cena_pal: 0,
     dopravce: '', poznamka: s('f-poznamka'),
     dat_nakladky: nakladky,
+    cisla_obj: getCisla('f').join(', ') || null,
     stav: 'new'
   };
 
@@ -1303,11 +1547,20 @@ async function submitOrder() {
   document.getElementById('submitTxt').textContent = 'Ukládám...';
 
   try {
-    const { error } = await sbClient.from('orders').insert([newOrder]);
+    let bezCisel = false;
+    let { error } = await sbClient.from('orders').insert([newOrder]);
+    if (error && isMissingCislaColumn(error)) {
+      const { cisla_obj, ...payload } = newOrder;
+      ({ error } = await sbClient.from('orders').insert([payload]));
+      bezCisel = !error;
+    }
     if (error) throw error;
-    showToast('✓ Objednávka uložena', 'success');
+    showToast(bezCisel
+      ? 'Objednávka uložena, ale číslo objednávky se neuložilo — v databázi chybí sloupec cisla_obj.'
+      : '✓ Objednávka uložena', bezCisel ? 'info' : 'success');
     ['f-firma','f-misto','f-psc','f-poznamka','f-bib20','f-bib5','f-bib3','f-pet2','f-sklo1','f-petP','f-palet','f-nakladky']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    renderCislaWidget('f', ['']);
     calcPreview();
     loadOrders();
   } catch (err) {
@@ -1390,6 +1643,7 @@ function openEditOrder(id) {
   document.getElementById('eo-petP').value = r.pet_prazdne || 0;
   document.getElementById('eo-palet').value = r.palet || 0;
   document.getElementById('eo-poznamka').value = r.poznamka || '';
+  renderCislaWidget('eo', parseCisla(r.cisla_obj));
   document.getElementById('editOrderModal').style.display = 'flex';
 }
 
@@ -1419,11 +1673,18 @@ async function saveEditOrder() {
     bib20: v('eo-bib20'), bib5: v('eo-bib5'), bib3: v('eo-bib3'),
     pet2: v('eo-pet2'), sklo1: v('eo-sklo1'), pet_prazdne: v('eo-petP'),
     dat_nakladky: s('eo-nakladky') || null,
-    poznamka: s('eo-poznamka')
+    poznamka: s('eo-poznamka'),
+    cisla_obj: getCisla('eo').join(', ') || null
   };
 
   try {
-    const { error } = await sbClient.from('orders').update(updates).eq('id', id);
+    let bezCisel = false;
+    let { error } = await sbClient.from('orders').update(updates).eq('id', id);
+    if (error && isMissingCislaColumn(error)) {
+      delete updates.cisla_obj;
+      ({ error } = await sbClient.from('orders').update(updates).eq('id', id));
+      bezCisel = !error;
+    }
     if (error) throw error;
     const row = RAW_DATA.find(r => r.id === id);
     if (row) Object.assign(row, updates);
@@ -1431,7 +1692,9 @@ async function saveEditOrder() {
     applyFilters();
     renderKolegaList();
     if (currentRole === 'hana' || currentRole === 'nahled') renderKPIs();
-    showToast('✓ Objednávka upravena', 'success');
+    showToast(bezCisel
+      ? 'Změny uloženy, ale číslo objednávky ne — v databázi chybí sloupec cisla_obj.'
+      : '✓ Objednávka upravena', bezCisel ? 'info' : 'success');
   } catch (err) {
     showToast('Chyba uložení: ' + err.message, 'error');
   }
@@ -1495,12 +1758,13 @@ function applyFilters(resetPage = false) {
     if (status  && r.stav !== status) return false;
     if (carrier && r.dopravce?.trim() !== carrier) return false;
     if (month   && r.datum?.slice(0,7) !== month) return false;
-    if (search  && !`${r.firma} ${r.misto} ${r.dopravce}`.toLowerCase().includes(search)) return false;
+    if (search  && !`${r.firma} ${r.misto} ${r.dopravce} ${r.cisla_obj||''}`.toLowerCase().includes(search)) return false;
     return true;
   });
   if (resetPage) currentPage = 1;
   renderTable();
   renderKPIs();
+  refreshTodoBadge();
 }
 
 function clearFilters() {
@@ -1558,14 +1822,14 @@ function renderTable() {
     return `<tr class="${rowCls}">
       <td style="text-align:center">${readOnly ? '' : `<input type="checkbox" class="row-check" data-id="${r.id}" data-dopravce="${r.dopravce||''}" style="cursor:pointer;accent-color:var(--green)" onchange="updateBulkBar()">`}</td>
       <td class="mono" style="font-size:11px">${r.datum||''}</td>
+      <td class="cisla-cell">${cislaCell(r)}</td>
       <td><div class="firm-name">${r.firma}</div><div class="firm-city">${r.psc||''} ${r.misto}</div></td>
-      <td style="font-size:12px">${r.misto}</td>
-      <td class="mono fw">${r.palet||'–'}</td>
-      <td class="mono">${(r.hmotnost||0).toFixed(3)}</td>
-      <td style="font-size:11px">${r.dat_nakladky||'–'}</td>
+      <td class="mono fw tight">${r.palet||'–'}</td>
+      <td class="mono tight">${(r.hmotnost||0).toFixed(3)}</td>
+      <td class="tight" style="font-size:11px">${r.dat_nakladky||'–'}</td>
       <td style="font-size:12px">${dopravceCell}</td>
-      <td class="mono fw">${cena}</td>
-      <td class="mono" style="font-size:11px;color:var(--muted)">${cPal}</td>
+      <td class="mono fw tight">${cena}</td>
+      <td class="mono tight" style="font-size:11px;color:var(--muted)">${cPal}</td>
       <td>${note}</td>
       <td>${tag}</td>
       <td>${actionsCell}</td>
@@ -1591,7 +1855,7 @@ function renderPagination() {
 // ── RENDER KOLEGA LIST ──
 function renderKolegaList() {
   const search = document.getElementById('kolegaSearch')?.value?.toLowerCase() || '';
-  const list = RAW_DATA.filter(r => !search || `${r.firma} ${r.misto}`.toLowerCase().includes(search));
+  const list = RAW_DATA.filter(r => !search || `${r.firma} ${r.misto} ${r.cisla_obj||''}`.toLowerCase().includes(search));
   const start = (kolegaPage-1)*PAGE_SIZE;
   const page  = list.slice(start, start+PAGE_SIZE);
   const tbody = document.getElementById('kolegaTbody');
@@ -1604,6 +1868,7 @@ function renderKolegaList() {
       : `<span class="tag tag-new">Čeká</span>`;
     return `<tr>
       <td class="mono" style="font-size:11px">${r.datum||''}</td>
+      <td class="cisla-cell">${cislaCell(r)}</td>
       <td><div class="firm-name">${r.firma}</div></td>
       <td style="font-size:12px">${r.misto}</td>
       <td class="mono fw">${r.palet||'–'}</td>
@@ -1624,7 +1889,7 @@ function renderKolegaList() {
         return `<button class="btn-sm" style="border:1.5px solid #c2d9bb;background:#f0f5ee;color:#3d6b4f;font-size:11px" onclick="openPalletFromOrder('${r.id}')" title="Zapsat palety">🪵 Palety</button>`;
       })()}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="7"><div class="empty-state">Žádné objednávky</div></td></tr>`;
+  }).join('') || `<tr><td colspan="9"><div class="empty-state">Žádné objednávky</div></td></tr>`;
 
   // Pagination
   const total = list.length; const pages = Math.ceil(total/PAGE_SIZE);
